@@ -47,13 +47,15 @@ export type Settings = {
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>
 
-export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt' | 'taskRef'>
+export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt' | 'taskRef' | 'sourceBranch' | 'targetBranch'>
 
 export type Result<T> = { value: T; error?: undefined } | { value?: undefined; error: string }
 
-const GH_PR_FIELDS = 'state,createdAt,body,headRefName,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
+const GH_PR_FIELDS = 'state,createdAt,body,headRefName,baseRefName,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
 
 const finishedDetails = new Map<string, BuildDetail>()
+
+const shortRef = (ref?: string) => (ref ? ref.replace(/^refs\/heads\//, '') : undefined)
 
 async function runJson<T>(io: Io, argv: string[]): Promise<Result<T>> {
   const ran = await io.run(argv)
@@ -117,6 +119,8 @@ async function checkAdo(io: Io, pr: WatchedPr, settings: Settings): Promise<Resu
     isDraft: details.isDraft === true,
     createdAt: details.creationDate ? Date.parse(details.creationDate) : undefined,
     taskRef: parseTaskRef(details.description, details.sourceRefName),
+    sourceBranch: shortRef(details.sourceRefName),
+    targetBranch: shortRef(details.targetRefName),
   }
 
   let found: Verdict
@@ -186,6 +190,8 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     isDraft: details.isDraft,
     createdAt: details.createdAt ? Date.parse(details.createdAt) : undefined,
     taskRef: parseTaskRef(details.body, details.headRefName),
+    sourceBranch: details.headRefName || undefined,
+    targetBranch: details.baseRefName || undefined,
   }
 
   let found: Verdict

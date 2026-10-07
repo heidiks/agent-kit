@@ -59,6 +59,8 @@ export type WatchedPr = {
   checkedAt?: number
   changedAt?: number
   createdAt?: number
+  sourceBranch?: string
+  targetBranch?: string
   history?: HistoryEntry[]
   sessions?: string[]
   taskRef?: string
@@ -79,6 +81,7 @@ declare module 'claude-code' {
       style: BandStyle
       tone: Tone
       pendingRemove: string
+      expanded: string
       doneExpanded: boolean
       plans: PlanInfo[]
     }

@@ -52,7 +52,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     const ui = await $.ui.mount({ plugin: 'pr-watch', surface, component: 'AbovePrompt', props: BAND })
     expect(await ui.find({ type: 'Text', text: 'TITLE' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'feat: x' })).toBeDefined()
+    expect((await ui.find({ key: 'exp-title-ado:123' }))?.text).toBe('feat: x')
     expect(await ui.find({ text: 'draft' })).toBeDefined()
     expect(await ui.find({ text: 'Run Lint: exit 2' })).toBeDefined()
 
@@ -636,4 +636,51 @@ test('clear-all drops this session PRs but keeps the ones another session also w
   await pane.press({ key: 'scope-all' })
   const ids = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h)).map(h => h.split('/').pop())
   expect([...new Set(ids)].sort()).toEqual(['2', '3'])
+})
+
+test('several PRs at once, separated by spaces or commas, each reported', async ($, on) => {
+  mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('process.run', (_$, e) => ({ value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  const added = await $.command.run({ command: 'pr-watch', args: '101 102,103  octo-org/website#7, nope' } as never)
+  expect(added.text).toBe([
+    'Watching PR 101.',
+    'Watching PR 102.',
+    'Watching PR 103.',
+    'Watching octo-org/website#7.',
+    'Could not parse "nope". Use an ADO id, a PR URL or owner/repo#N.',
+  ].join('\n'))
+  expect((await $.command.run({ command: 'pr-watch', args: '101' } as never)).text).toBe('PR 101 is already being watched.')
+  await $.command.run({ command: 'pr-watch', args: 'rm 101, 102' } as never)
+  const listed = (await $.command.run({ command: 'pr-watch', args: '' } as never)).text ?? ''
+  expect(listed.includes('PR 101') || listed.includes('PR 102')).toBe(false)
+  expect(listed).toContain('PR 103')
+})
+
+test('clicking the title opens a detail line with the full title, repo and branches; one at a time', async ($, on) => {
+  const clock = mock.clock(on, { now: Date.parse('2026-10-07T12:00:00Z') })
+  mock.store(on)
+  const longTitle = 'feat(auth-gatekeeper): login only through the identity provider configured for the tenant'
+  on('process.run', (_$, e) => {
+    const show = { ...PR_SHOW, title: longTitle, creationDate: '2026-10-07T10:00:00Z', sourceRefName: 'refs/heads/agk-parameter', targetRefName: 'refs/heads/master' }
+    const stdout = e.argv.includes('policy') ? JSON.stringify(POLICIES) : e.argv[0] === 'az' && e.argv.includes('show') ? JSON.stringify(show) : e.argv.includes('invoke') ? JSON.stringify(TIMELINE) : ''
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  await $.command.run({ command: 'pr-watch', args: '123 124' } as never)
+  await clock.advance(1)
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: { ...(BAND as object), bodyColumns: 160 } as never, viewport: { columns: 160, rows: 40 } })
+
+  expect((await ui.find({ key: 'exp-title-ado:123' }))?.text).toBe('feat(auth-gatekeeper): login…')
+  expect(await ui.find({ type: 'Text', text: longTitle })).toBe(undefined)
+
+  await ui.press({ key: 'exp-title-ado:123' })
+  expect(await ui.find({ type: 'Text', text: longTitle })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'repo contoso/Contoso/web-app · agk-parameter → master · opened 2h ago' })).toBeDefined()
+
+  await ui.press({ key: 'exp-repo-ado:124' })
+  expect(await ui.find({ key: 'exp-close-ado:123' })).toBe(undefined)
+  expect(await ui.find({ key: 'exp-close-ado:124' })).toBeDefined()
+
+  await ui.press({ key: 'exp-close-ado:124' })
+  expect(await ui.find({ type: 'Text', text: longTitle })).toBe(undefined)
 })

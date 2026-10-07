@@ -20,7 +20,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Gate:** build validation and checks, reviewers and their votes, merge conflicts, drafts.
 - **After merge:** the pipelines and checks of the merge commit, with stages and pending approvals. A run that "succeeded" while a stage approval was never granted is flagged instead of shown green.
 - **Failures:** the failing task or annotation inline, plus an `investigate` button that asks Claude to read the log and propose a fix (nothing is applied).
-- **Row actions:** `↗ open` opens the PR in the browser, `×` stops watching it after an inline `remove? yes no` confirmation.
+- **Row actions:** `↗ open` opens the PR in the browser, `×` stops watching it after an inline `remove? yes no` confirmation. Clicking the title or the repo opens a detail line under the row (full title, full repo path, source → target branch, linked task, age); clicking again or `▾` closes it.
 - **SINCE:** how long the PR has been in its current state; a PR waiting on review or approval for over 24h is flagged (`! 2d`). The header warns when data is stale.
 - **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok), newest first within the same state. The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
 - **Modes:** `⇕` cycles the band between `full`, `compact` (one row per PR) and `mini` (one line: counts and the most urgent PR).
@@ -36,6 +36,7 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 /pr-watch 4242                                  # Azure DevOps PR id
 /pr-watch https://github.com/owner/repo/pull/7  # any PR URL
 /pr-watch owner/repo#7
+/pr-watch 19758 19759, owner/repo#7               # several at once, spaces or commas
 /pr-watch mine                                  # your open PRs: the session repo's go to the band, the rest to the overview's all filter
 /pr-watch overview                              # popup with every PR, timeline and summary
 /pr-watch mode [full|compact|mini]

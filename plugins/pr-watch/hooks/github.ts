@@ -21,6 +21,7 @@ export type GhPr = {
   createdAt?: string
   body?: string
   headRefName?: string
+  baseRefName?: string
   title: string
   url: string
   closedAt: string | null
