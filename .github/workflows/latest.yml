@@ -1,0 +1,27 @@
+name: latest Claude Code
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  plugins:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@latest && claude --version
+      - name: Validate marketplace and plugins
+        run: |
+          claude plugin validate .
+          for dir in plugins/*/; do claude plugin validate "$dir"; done
+      - name: Test plugins
+        run: |
+          for dir in plugins/*/; do claude plugin test "$dir"; done
