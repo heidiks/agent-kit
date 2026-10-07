@@ -4,7 +4,7 @@ import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-cod
 import type { BandMode, BandStyle, OverviewScope, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { ADO_PR_CREATE, adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, parsePrIds, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef, parseGithubRefs } from './github'
-import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, type Io, type Seed, type Settings } from './providers'
+import { checkPr, currentBranchSeeds, inRepo, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, sessionRepo, type Io, type Seed, type Settings } from './providers'
 import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
@@ -95,6 +95,35 @@ function inSession(pr: WatchedPr, session: string): boolean {
 async function visible($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
   const session = await read($, sessionId)
   return (await everyEnabled($, settings)).filter(p => inSession(p, session))
+}
+
+async function catalog($: EngineInterface, seed: Seed, settings: Settings): Promise<boolean> {
+  if (!isEnabled(seed, settings) || (await read($, prs)).some(p => p.key === seed.key)) {
+    return false
+  }
+  const added: WatchedPr = {
+    ...seed, project: '', title: '', url: '', phase: 'loading', checks: [],
+    isDraft: false, isFailed: false, isDone: false, sessions: [],
+  }
+  await update($, prs, current => [...current, added])
+  await save($)
+  $.clock.after(0, () => void refreshOne($, added, settings).then(() => save($)).catch(() => undefined))
+  return true
+}
+
+async function clearSession($: EngineInterface, settings: Settings): Promise<number> {
+  const session = await read($, sessionId)
+  const mine = (await visible($, settings)).map(p => p.key)
+  await update($, prs, list =>
+    list
+      .map(p => (mine.includes(p.key) ? { ...p, sessions: (p.sessions ?? []).filter(s => s !== session) } : p))
+      .filter(p => !mine.includes(p.key) || (p.sessions ?? []).length > 0),
+  )
+  for (const key of mine) nextAt.delete(key)
+  await save($)
+  await syncSpinner($, settings)
+  await syncStatus($, settings)
+  return mine.length
 }
 
 async function adopt($: EngineInterface, key: string, settings: Settings): Promise<void> {
@@ -440,7 +469,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | hide | show | style [name]',
+      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | clear-all | hide | show | style [name]',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -490,14 +519,23 @@ export const register: Register = (on, options) => {
     }
     if (verb === 'mine') {
       const { seeds, errors } = await mySeeds(ioOf($), settings)
-      let added = 0
-      for (const seed of seeds) {
-        if ((await watch($, seed, settings)) === 'added') {
-          added += 1
-        }
+      const here = await sessionRepo(ioOf($), settings)
+      const local = seeds.filter(seed => inRepo(seed, here))
+      const elsewhere = seeds.filter(seed => !inRepo(seed, here))
+      for (const seed of local) {
+        await watch($, seed, settings)
       }
-      const summary = seeds.length === 0 ? 'No open PRs of yours found.' : `Watching ${seeds.length} of your open PRs (${added} new).`
-      return { text: [summary, ...errors.map(error => `! ${error}`)].join('\n') }
+      for (const seed of elsewhere) {
+        await catalog($, seed, settings)
+      }
+      const where = here ? `${here.provider === 'github' ? `${here.owner}/` : ''}${here.repo}` : 'this session (no known repo here)'
+      const lines = seeds.length === 0
+        ? ['No open PRs of yours found.']
+        : [
+            `Watching ${local.length} of your open PRs from ${where}.`,
+            ...(elsewhere.length > 0 ? [`${elsewhere.length} from other repos are in the overview (all filter): use "+ watch here" on the ones that belong to this session.`] : []),
+          ]
+      return { text: [...lines, ...errors.map(error => `! ${error}`)].join('\n') }
     }
     if (verb === 'all' || verb === 'overview') {
       await openOverview($)
@@ -511,6 +549,10 @@ export const register: Register = (on, options) => {
         await cycleMode($)
       }
       return { text: `Band mode: ${await read($, mode)}.` }
+    }
+    if (verb === 'clear-all') {
+      const cleared = await clearSession($, settings)
+      return { text: cleared === 0 ? 'No PRs in this session.' : `Stopped watching ${cleared} PR(s) in this session.` }
     }
     if (verb === 'clear') {
       await remove($, p => !p.isDone, settings)

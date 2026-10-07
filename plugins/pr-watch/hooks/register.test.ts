@@ -388,13 +388,14 @@ test('a state change after the first read sends a system notification', async ($
   expect(notified[1]?.slice(-3)).toEqual(['pr-watch · web-app !123', 'feat: x', '✗ failed: build'])
 })
 
-test('mine imports your open PRs from both providers and reports provider errors', { options: { githubHosts: 'github.com, github.example.com' } }, async ($, on) => {
+test('mine watches your PRs from the session repo and catalogs the rest for the overview', { options: { githubHosts: 'github.com, github.example.com', currentBranch: false, tasks: false } }, async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
   const calls: string[][] = []
   on('process.run', (_$, e) => {
     calls.push([...e.argv])
     const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv[0] === 'git') return { value: { exitCode: 0, stdout: `${WEB}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     if (e.argv.includes('account')) return ok('alice@contoso.com')
     if (e.argv.includes('policy')) return ok([])
     if (e.argv.includes('list') && e.argv[0] === 'az') return ok([{ pullRequestId: 11, repository: { name: 'web-app' } }, { pullRequestId: 12, repository: { name: 'api' } }])
@@ -403,15 +404,23 @@ test('mine imports your open PRs from both providers and reports provider errors
     return ok(PR_SHOW)
   })
 
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
   await $.command.run({ command: 'pr-watch', args: '11' } as never)
   const answer = await $.command.run({ command: 'pr-watch', args: 'mine' } as never)
-  expect(answer.text).toBe('Watching 3 of your open PRs (2 new).\n! gh (github.example.com): HTTP 401: Bad credentials')
+  expect(answer.text).toBe('Watching 1 of your open PRs from web-app.\n2 from other repos are in the overview (all filter): use "+ watch here" on the ones that belong to this session.\n! gh (github.example.com): HTTP 401: Bad credentials')
   expect(calls.find(c => c[0] === 'az' && c.includes('list'))).toContain('alice@contoso.com')
   expect(calls.find(c => c[0] === 'az' && c.includes('list'))).toContain('--detect')
   expect(calls.find(c => c[0] === 'env')?.[1]).toBe('GH_HOST=github.example.com')
   await clock.advance(1)
   const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
-  expect(listed.text).toContain('octo-org/website#300')
+  expect(listed.text).toContain('PR 11')
+  expect(listed.text).not.toContain('PR 12')
+  expect(listed.text).not.toContain('octo-org/website#300')
+  expect(calls.some(c => c[0] === 'az' && c.includes('--id') && c.includes('12'))).toBe(true)
 })
 
 test('a malformed provider response shows as an error on the row instead of breaking the refresh', async ($, on) => {
@@ -600,3 +609,31 @@ for (const [width, repo, title] of [[80, false, false], [100, true, false], [140
     expect(await ui.find({ type: 'Text', text: 'CHECKS' })).toBeDefined()
   })
 }
+
+test('clear-all drops this session PRs but keeps the ones another session also watches', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  const pr = (id: number, sessions: string[]) => ({
+    key: `ado:${id}`, provider: 'ado', id, repo: 'web-app', project: 'Contoso', title: 't', url: `${WEB}/pullrequest/${id}`,
+    phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, sessions,
+  })
+  mock.store(on, { prs: [pr(1, ['session-a']), pr(2, ['session-a', 'session-b']), pr(3, ['session-b'])] })
+  on('process.run', (_$, e) => ({ value: { exitCode: e.argv[0] === 'git' ? 1 : 0, stdout: e.argv.includes('policy') ? '[]' : JSON.stringify(PR_SHOW), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', () => ({ value: false }) as never)
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+  expect((await $.command.run({ command: 'pr-watch', args: 'clear-all' } as never)).text).toBe('Stopped watching 2 PR(s) in this session.')
+  expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toBe('No PRs being watched.')
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
+  })
+  await pane.press({ key: 'scope-all' })
+  const ids = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h)).map(h => h.split('/').pop())
+  expect([...new Set(ids)].sort()).toEqual(['2', '3'])
+})

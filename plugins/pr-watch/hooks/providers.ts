@@ -224,6 +224,31 @@ export function checkPr(io: Io, pr: WatchedPr, settings: Settings): Promise<Resu
   return pr.provider === 'github' ? checkGithub(io, pr, settings) : checkAdo(io, pr, settings)
 }
 
+export type SessionRepo = { provider: 'ado'; repo: string } | { provider: 'github'; host: string; owner: string; repo: string }
+
+export async function sessionRepo(io: Io, settings: Settings): Promise<SessionRepo | undefined> {
+  const remote = await io.run(['git', 'remote', 'get-url', 'origin']).catch(() => undefined)
+  if (!remote || remote.exitCode !== 0) {
+    return undefined
+  }
+  const adoRepo = repoFromRemote(remote.stdout)
+  if (adoRepo) {
+    return { provider: 'ado', repo: adoRepo }
+  }
+  const ghRepo = parseGithubRemote(remote.stdout, settings.githubHosts)
+  return ghRepo ? { provider: 'github', ...ghRepo } : undefined
+}
+
+export function inRepo(seed: Seed, here: SessionRepo | undefined): boolean {
+  if (!here || seed.provider !== here.provider) {
+    return false
+  }
+  if (here.provider === 'ado') {
+    return seed.repo.toLowerCase() === here.repo.toLowerCase()
+  }
+  return seed.host === here.host && seed.owner?.toLowerCase() === here.owner.toLowerCase() && seed.repo.toLowerCase() === here.repo.toLowerCase()
+}
+
 export async function currentBranchSeeds(io: Io, settings: Settings): Promise<Seed[]> {
   const branch = await io.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
   const remote = await io.run(['git', 'remote', 'get-url', 'origin'])
