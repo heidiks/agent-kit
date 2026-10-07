@@ -35,7 +35,7 @@ LINES = [
         cell([('CHECKS', 'faint', 'b')], 38), cell([('SINCE', 'faint', 'b')], 6)),
     row(cell([(' ✗', 'error')], 3), cell([('ado', 'faint')], 4), cell([('!4242', 'link', 'bu')], 8), cell([('web-app', 'faint')], 18), cell([('gate', 'suggestion')], 9),
         cell([('✗ ', 'error'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('Code-Reviewers', 'text')], 38), cell([('40m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
-    row(cell([('', 'text')], 15), cell([('└ Run Lint: Bash exited with code \'2\'.', 'error')], 71), [('⌕ investigate', 'dim')]),
+    row(cell([('', 'text')], 15), cell([('└ Run Lint: Bash exited with code \'2\'.', 'error')], 42), [('⌕ investigate', 'dim')]),
     row(cell([(' ⠹', 'suggestion')], 3), cell([('gh', 'faint')], 4), cell([('#300', 'link', 'bu')], 8), cell([('octo-org/website', 'faint')], 18), cell([('merged', 'merged')], 9),
         cell([('✓ ', 'success'), ('test', 'link', 'u'), ('  ', 'text'), ('⠹ ', 'suggestion'), ('deploy', 'link', 'u')], 38), cell([('3m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
     row(cell([(' ◐', 'warning')], 3), cell([('gh', 'faint')], 4), cell([('#298', 'link', 'bu')], 8), cell([('octo-org/website', 'faint')], 18), cell([('merged', 'merged')], 9),

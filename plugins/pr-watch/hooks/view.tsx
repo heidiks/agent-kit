@@ -205,7 +205,7 @@ export function renderBand(ctx: BandContext) {
   const reasonLine = (pr: WatchedPr, item: Check, indent: number) => (
     <Box flexDirection="row" gap={1} paddingLeft={indent}>
       <Text color="error">└</Text>
-      <Box flexShrink={1} flexGrow={1}>
+      <Box flexShrink={1} marginRight={1}>
         <Text color="error" wrap="truncate-end">{item.reason}</Text>
       </Box>
       <Button
