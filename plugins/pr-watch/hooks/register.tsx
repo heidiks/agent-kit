@@ -15,7 +15,7 @@ const STYLE_KEY = 'style'
 const prs = atom({ plugin: 'pr-watch', key: 'prs' } as const, [])
 const frame = atom({ plugin: 'pr-watch', key: 'frame' } as const, 0)
 const mode = atom({ plugin: 'pr-watch', key: 'mode' } as const, 'full' as BandMode)
-const scope = atom({ plugin: 'pr-watch', key: 'scope' } as const, 'all' as OverviewScope)
+const scope = atom({ plugin: 'pr-watch', key: 'scope' } as const, 'session' as OverviewScope)
 const sessionId = atom({ plugin: 'pr-watch', key: 'sessionId' } as const, '')
 const summary = atom({ plugin: 'pr-watch', key: 'summary' } as const, '')
 const summaryStatus = atom({ plugin: 'pr-watch', key: 'summaryStatus' } as const, 'idle' as SummaryStatus)
@@ -84,8 +84,27 @@ function label(pr: Pick<WatchedPr, 'provider' | 'id' | 'owner' | 'repo'>): strin
   return pr.provider === 'github' ? `${pr.owner}/${pr.repo}#${pr.id}` : `PR ${pr.id}`
 }
 
-async function visible($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
+async function everyEnabled($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
   return (await read($, prs)).filter(p => isEnabled(p, settings))
+}
+
+function inSession(pr: WatchedPr, session: string): boolean {
+  return session === '' || (pr.sessions ?? []).includes(session)
+}
+
+async function visible($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
+  const session = await read($, sessionId)
+  return (await everyEnabled($, settings)).filter(p => inSession(p, session))
+}
+
+async function adopt($: EngineInterface, key: string, settings: Settings): Promise<void> {
+  const session = await read($, sessionId)
+  await update($, prs, list =>
+    list.map(p => (p.key === key && !inSession(p, session) ? { ...p, sessions: [...(p.sessions ?? []), session] } : p)),
+  )
+  nextAt.set(key, 0)
+  await save($)
+  $.clock.after(0, () => void refresh($, settings))
 }
 
 async function save($: EngineInterface): Promise<void> {
@@ -301,8 +320,10 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     limit: isPane ? Number.POSITIVE_INFINITY : settings.maxRows,
     doneExpanded: isPane || (await read($, doneExpanded)),
     isPane,
+    currentSession: await read($, sessionId),
     plans: settings.tasks ? await read($, plans) : [],
     actions: {
+      adopt: key => void adopt($, key, settings),
       remove: key => void update($, pendingRemove, () => '').then(() => remove($, p => p.key !== key, settings)),
       askRemove: key => void askRemove($, key),
       cancelRemove: () => void update($, pendingRemove, () => ''),
@@ -342,12 +363,7 @@ async function openOverview($: EngineInterface): Promise<void> {
 }
 
 async function scopedList($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
-  const list = await visible($, settings)
-  if ((await read($, scope)) === 'all') {
-    return list
-  }
-  const session = await read($, sessionId)
-  return list.filter(p => (p.sessions ?? []).includes(session))
+  return (await read($, scope)) === 'all' ? everyEnabled($, settings) : visible($, settings)
 }
 
 async function summarize($: EngineInterface, settings: Settings): Promise<void> {
@@ -381,13 +397,13 @@ async function drawBand($: EngineInterface, el: ReturnType<EngineInterface['ui']
 
 async function drawOverview($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings) {
   const session = await read($, sessionId)
-  const all = await visible($, settings)
+  const all = await everyEnabled($, settings)
   const context = await bandContext($, el, await scopedList($, settings), true, settings)
 
   return renderOverview({
     ...context,
     scope: await read($, scope),
-    sessionCount: all.filter(p => (p.sessions ?? []).includes(session)).length,
+    sessionCount: all.filter(p => inSession(p, session)).length,
     summary: await read($, summary),
     summaryStatus: await read($, summaryStatus),
     overview: {
