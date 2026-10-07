@@ -230,7 +230,7 @@ test('notificationFor: important events only, never the first read', () => {
   const base = watched({ phase: 'gate', url: 'https://x/pr/1', checks: [{ name: 'build', state: 'running' }] })
   const failing = { ...base, checks: [{ name: 'build', state: 'fail' as const }] }
   expect(notificationFor(watched({ phase: 'loading' }), failing, 'important')).toBe(undefined)
-  expect(notificationFor(base, failing, 'important')?.message).toBe('✗ failed: build')
+  expect(notificationFor(base, failing, 'important')).toEqual({ title: 'r !1', prTitle: 't', message: '✗ failed: build', url: 'https://x/pr/1' })
   expect(notificationFor(base, failing, 'off')).toBe(undefined)
   expect(notificationFor(failing, failing, 'important')).toBe(undefined)
 

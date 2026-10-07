@@ -51,6 +51,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(listed.text).toBe('✗ PR 123 web-app · gate · ✗ build  ◐ Code-Reviewers')
 
     const ui = await $.ui.mount({ plugin: 'pr-watch', surface, component: 'AbovePrompt', props: BAND })
+    expect(await ui.find({ type: 'Text', text: 'TITLE' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'feat: x' })).toBeDefined()
     expect(await ui.find({ text: 'draft' })).toBeDefined()
     expect(await ui.find({ text: 'Run Lint: exit 2' })).toBeDefined()
 
@@ -312,6 +314,7 @@ test('mini mode: one line with counts and the most urgent PR', async ($, on) => 
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
   expect((await band.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(1)
   expect(await band.find({ type: 'Text', text: 'build' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: 'feat: x' })).toBeDefined()
   expect(await band.find({ key: 'style' })).toBe(undefined)
   expect((await band.find({ key: 'mode' }))?.text).toBe('⇕ mini')
   expect(await band.find({ key: 'overview' })).toBeDefined()
@@ -382,5 +385,5 @@ test('a state change after the first read sends a system notification', async ($
   buildStatus = 'rejected'
   await clock.advance(16_000)
   expect(notified.length).toBe(2)
-  expect(notified[1]?.slice(-2)).toEqual(['web-app !123', '✗ failed: build'])
+  expect(notified[1]?.slice(-3)).toEqual(['pr-watch · web-app !123', 'feat: x', '✗ failed: build'])
 })

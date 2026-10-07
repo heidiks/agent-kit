@@ -364,7 +364,7 @@ export const SUMMARY_SYSTEM = [
 
 export type NotifyLevel = 'off' | 'important' | 'all'
 
-export type Notification = { title: string; message: string; url: string }
+export type Notification = { title: string; prTitle: string; message: string; url: string }
 
 const failingNames = (pr: WatchedPr) => pr.checks.filter(c => c.state === 'fail').map(c => c.name)
 const awaitingApproval = (pr: WatchedPr) => pr.checks.flatMap(c => [c, ...(c.stages ?? [])]).filter(c => c.note === 'awaiting approval').map(c => c.name)
@@ -379,7 +379,7 @@ export function notificationFor(before: WatchedPr, after: WatchedPr, level: Noti
     return undefined
   }
   const title = prLabel(after)
-  const note = (message: string) => ({ title, message, url: after.url })
+  const note = (message: string) => ({ title, prTitle: after.title, message, url: after.url })
 
   const failed = newOnes(failingNames(after), failingNames(before))
   if (failed.length > 0) {
