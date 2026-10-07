@@ -46,6 +46,7 @@ export type BandContext = {
   limit: number
   doneExpanded: boolean
   isPane: boolean
+  width: number
   currentSession: string
   plans: PlanInfo[]
   actions: BandActions
@@ -360,52 +361,62 @@ export function renderBand(ctx: BandContext) {
     )
   }
 
-  const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 10, repo: 16, title: 30, phase: 9, age: 6 }
+  const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 10, repo: 16, title: 30, phase: 9, age: 6, actions: 15 }
+  const MIN_CHECKS = 24
+  const fixedWidth = 2 + COLUMNS.mark + COLUMNS.origin + COLUMNS.pr + (hasTasks ? COLUMNS.task : 0) + COLUMNS.phase + COLUMNS.age + COLUMNS.actions
+  const showRepo = ctx.width >= fixedWidth + COLUMNS.repo + MIN_CHECKS
+  const showTitle = showRepo && ctx.width >= fixedWidth + COLUMNS.repo + COLUMNS.title + MIN_CHECKS
+  const lineIndent = COLUMNS.mark + COLUMNS.origin + COLUMNS.pr
+
+  const cellOf = (width: number, child: RenderChildren, padRight = false) => (
+    <Box width={width} flexShrink={0} paddingRight={padRight ? 1 : 0}>
+      {child}
+    </Box>
+  )
+
+  const heading = (label: string) => <Text color={faint} bold>{label}</Text>
 
   const tableHeader = (
     <Box flexDirection="row">
-      <Box width={COLUMNS.mark}><Text> </Text></Box>
-      <Box width={COLUMNS.origin}><Text color={faint} bold>SRC</Text></Box>
-      <Box width={COLUMNS.pr}><Text color={faint} bold>PR</Text></Box>
-      {hasTasks && <Box width={COLUMNS.task}><Text color={faint} bold>TASK</Text></Box>}
-      <Box width={COLUMNS.repo}><Text color={faint} bold>REPO</Text></Box>
-      <Box width={COLUMNS.title}><Text color={faint} bold>TITLE</Text></Box>
-      <Box width={COLUMNS.phase}><Text color={faint} bold>PHASE</Text></Box>
-      <Box flexGrow={1}><Text color={faint} bold>CHECKS</Text></Box>
-      <Box width={COLUMNS.age}><Text color={faint} bold>SINCE</Text></Box>
-      <Box width={15}><Text> </Text></Box>
+      {cellOf(COLUMNS.mark, <Text> </Text>)}
+      {cellOf(COLUMNS.origin, heading('SRC'))}
+      {cellOf(COLUMNS.pr, heading('PR'))}
+      {hasTasks && cellOf(COLUMNS.task, heading('TASK'))}
+      {showRepo && cellOf(COLUMNS.repo, heading('REPO'))}
+      {showTitle && cellOf(COLUMNS.title, heading('TITLE'))}
+      {cellOf(COLUMNS.phase, heading('PHASE'))}
+      <Box flexGrow={1} flexShrink={1} minWidth={0}>{heading('CHECKS')}</Box>
+      {cellOf(COLUMNS.age, heading('SINCE'))}
+      {cellOf(COLUMNS.actions, <Text> </Text>)}
     </Box>
   )
 
   const tableRow = (pr: WatchedPr) => (
     <Box flexDirection="column">
       <Box flexDirection="row">
-        <Box width={COLUMNS.mark}>{mark(overallState(pr.checks, pr.phase))}</Box>
-        <Box width={COLUMNS.origin}><Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text></Box>
-        <Box width={COLUMNS.pr}>{prLink(pr)}</Box>
-        {hasTasks && (
-          <Box width={COLUMNS.task}>
-            <Text color={linked(pr) ? 'suggestion' : faint}>{linked(pr)?.task.id ?? '-'}</Text>
-          </Box>
-        )}
-        <Box width={COLUMNS.repo} paddingRight={1}><Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text></Box>
-        <Box width={COLUMNS.title} paddingRight={1}><Text wrap="truncate-end" {...quiet}>{pr.title}</Text></Box>
-        <Box width={COLUMNS.phase}><Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text></Box>
-        <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={2} overflow="hidden">
-          {pr.checks.map(c => checkItem(collapsed ? { ...c, note: undefined } : c))}
+        {cellOf(COLUMNS.mark, mark(overallState(pr.checks, pr.phase)))}
+        {cellOf(COLUMNS.origin, <Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text>)}
+        {cellOf(COLUMNS.pr, prLink(pr))}
+        {hasTasks && cellOf(COLUMNS.task, <Text color={linked(pr) ? 'suggestion' : faint}>{linked(pr)?.task.id ?? '-'}</Text>)}
+        {showRepo && cellOf(COLUMNS.repo, <Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text>, true)}
+        {showTitle && cellOf(COLUMNS.title, <Text wrap="truncate-end" {...quiet}>{pr.title}</Text>, true)}
+        {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
+        <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row" columnGap={2} overflow="hidden">
+          {pr.checks.map(c => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c)}</Box>)}
         </Box>
-        <Box width={COLUMNS.age}>
-          {isWaitingTooLong(pr, now) ? (
+        {cellOf(
+          COLUMNS.age,
+          isWaitingTooLong(pr, now) ? (
             <Text color="warning" bold>{`! ${ago(now - (pr.changedAt ?? now))}`}</Text>
           ) : (
             <Text color={faint}>{pr.changedAt ? ago(now - pr.changedAt) : '-'}</Text>
-          )}
-        </Box>
-        <Box width={15}>{rowActions(pr)}</Box>
+          ),
+        )}
+        {cellOf(COLUMNS.actions, rowActions(pr))}
       </Box>
-      {errorLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
-      {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr))}
-      {markDoneLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
+      {errorLine(pr, lineIndent)}
+      {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, lineIndent))}
+      {markDoneLine(pr, lineIndent)}
     </Box>
   )
 

@@ -407,6 +407,7 @@ test('mine imports your open PRs from both providers and reports provider errors
   const answer = await $.command.run({ command: 'pr-watch', args: 'mine' } as never)
   expect(answer.text).toBe('Watching 3 of your open PRs (2 new).\n! gh (github.example.com): HTTP 401: Bad credentials')
   expect(calls.find(c => c[0] === 'az' && c.includes('list'))).toContain('alice@contoso.com')
+  expect(calls.find(c => c[0] === 'az' && c.includes('list'))).toContain('--detect')
   expect(calls.find(c => c[0] === 'env')?.[1]).toBe('GH_HOST=github.example.com')
   await clock.advance(1)
   const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
@@ -539,3 +540,63 @@ test('session scope: another session PRs stay out of the band and polling until 
   expect(polled.some(cmd => cmd.includes('--id 77'))).toBe(true)
   expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toContain('PR 77')
 })
+
+test('az pr create with -o tsv watches every created PR, across repos', async ($, on) => {
+  const clock = mock.clock(on, { now: Date.parse('2026-10-07T17:38:00Z') })
+  mock.store(on)
+  on('process.run', (_$, e) => {
+    const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv.includes('account')) return ok('alice@contoso.com')
+    if (e.argv.includes('list')) return ok([])
+    if (e.argv.includes('policy')) return ok(POLICIES)
+    return ok(PR_SHOW)
+  })
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: '19758\n19759\n' }))
+
+  await $.tool.call({ tool: 'Bash', command: 'az repos pr create -r go-monorepo --query pullRequestId -o tsv; az repos pr create -r ei-host --query pullRequestId -o tsv' } as never)
+  await clock.advance(1)
+  const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
+  expect(listed.text).toContain('PR 19758')
+  expect(listed.text).toContain('PR 19759')
+})
+
+test('a PR create whose output names no id is found by asking Azure DevOps for PRs created just now', async ($, on) => {
+  const now = Date.parse('2026-10-07T17:38:00Z')
+  const clock = mock.clock(on, { now })
+  mock.store(on)
+  on('process.run', (_$, e) => {
+    const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv.includes('account')) return ok('alice@contoso.com')
+    if (e.argv.includes('list')) {
+      return ok([
+        { pullRequestId: 19759, creationDate: '2026-10-07T17:37:30Z', repository: { name: 'ei-host' } },
+        { pullRequestId: 18463, creationDate: '2026-09-01T10:00:00Z', repository: { name: 'go-monorepo' } },
+      ])
+    }
+    if (e.argv.includes('policy')) return ok(POLICIES)
+    return ok(PR_SHOW)
+  })
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false }, text: 'retarget 200\n' }))
+
+  await $.tool.call({ tool: 'Bash', command: 'curl -s -X POST "https://dev.azure.com/o/p/_apis/git/repositories/ei-host/pullrequests?api-version=7.1" -d @body.json' } as never)
+  await clock.advance(1)
+  const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
+  expect(listed.text).toContain('PR 19759')
+  expect(listed.text).not.toContain('PR 18463')
+})
+
+for (const [width, repo, title] of [[80, false, false], [100, true, false], [140, true, true]] as const) {
+  test(`table fits ${width} columns: REPO ${repo ? 'shown' : 'hidden'}, TITLE ${title ? 'shown' : 'hidden'}`, async ($, on) => {
+    const clock = mock.clock(on, { now: 1_000_000 })
+    mock.store(on)
+    on('process.run', (_$, e) => ({
+      value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+    }))
+    await $.command.run({ command: 'pr-watch', args: '123' } as never)
+    await clock.advance(1)
+    const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: { ...(BAND as object), bodyColumns: width } as never, viewport: { columns: width, rows: 40 } })
+    expect((await ui.find({ type: 'Text', text: 'REPO' })) !== undefined).toBe(repo)
+    expect((await ui.find({ type: 'Text', text: 'TITLE' })) !== undefined).toBe(title)
+    expect(await ui.find({ type: 'Text', text: 'CHECKS' })).toBeDefined()
+  })
+}

@@ -7,6 +7,7 @@ import {
   githubKey,
   githubMergedVerdict,
   parseGithubRef,
+  parseGithubRefs,
   parseGithubRemote,
   type GhPr,
 } from './github'
@@ -95,4 +96,9 @@ test('reason: first failure annotation, with its file', () => {
     { annotation_level: 'failure', message: 'x', path: 'src/a.ts' },
   ])).toBe('Process completed with exit code 1.')
   expect(annotationReason([])).toBe(undefined)
+})
+
+test('parseGithubRefs: every PR URL in the output, deduplicated', () => {
+  const out = 'https://github.com/o/a/pull/1\nhttps://github.com/o/b/pull/2\nhttps://github.com/o/a/pull/1\nhttps://outro.com/x/y/pull/3'
+  expect(parseGithubRefs(out, HOSTS).map(ref => `${ref.repo}#${ref.number}`)).toEqual(['a#1', 'b#2'])
 })

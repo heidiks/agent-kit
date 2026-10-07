@@ -301,6 +301,20 @@ export async function sendNotification(io: Io, notification: Notification): Prom
 }
 
 const MINE_LIMIT = 30
+const RECENT_LIMIT = 20
+
+export async function recentAdoSeeds(io: Io, since: number): Promise<Seed[]> {
+  const account = await az<string>(io, ['account', 'show', '--query', 'user.name'])
+  if (typeof account.value !== 'string' || account.value === '') {
+    return []
+  }
+  const found = await az<{ pullRequestId: number; creationDate: string; repository: { name: string } }[]>(io, [
+    'repos', 'pr', 'list', '--creator', account.value, '--status', 'active', '--detect', 'false', '--top', String(RECENT_LIMIT),
+  ])
+  return (found.value ?? [])
+    .filter(pr => Date.parse(pr.creationDate) >= since)
+    .map(pr => ({ key: adoKey(pr.pullRequestId), provider: 'ado' as const, id: pr.pullRequestId, repo: pr.repository.name }))
+}
 
 export type MineResult = { seeds: Seed[]; errors: string[] }
 
@@ -310,9 +324,9 @@ export async function mySeeds(io: Io, settings: Settings): Promise<MineResult> {
 
   if (settings.ado) {
     const account = await az<string>(io, ['account', 'show', '--query', 'user.name'])
-    const found = account.value
+    const found = typeof account.value === 'string' && account.value !== ''
       ? await az<{ pullRequestId: number; repository: { name: string } }[]>(io, [
-          'repos', 'pr', 'list', '--creator', account.value, '--status', 'active', '--top', String(MINE_LIMIT),
+          'repos', 'pr', 'list', '--creator', account.value, '--status', 'active', '--detect', 'false', '--top', String(MINE_LIMIT),
         ])
       : { error: account.error ?? 'no signed-in user' }
     if (found.value) {

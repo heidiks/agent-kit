@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
 import type { BandMode, BandStyle, OverviewScope, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
-import { adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
-import { githubKey, parseGithubRef } from './github'
-import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, mySeeds, sendNotification, type Io, type Seed, type Settings } from './providers'
+import { ADO_PR_CREATE, adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, parsePrIds, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
+import { githubKey, parseGithubRef, parseGithubRefs } from './github'
+import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, type Io, type Seed, type Settings } from './providers'
 import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
@@ -257,6 +257,25 @@ async function syncTone($: EngineInterface): Promise<void> {
   await update($, tone, () => toneOf(theme?.value))
 }
 
+const RECENT_SLACK_MS = 60_000
+const DEFAULT_WIDTH = 140
+let pendingDetections = 0
+
+async function watchRecentlyCreated($: EngineInterface, since: number, settings: Settings): Promise<void> {
+  for (const seed of await recentAdoSeeds(ioOf($), since)) {
+    await watch($, seed, settings)
+  }
+}
+
+async function detecting<T>(work: Promise<T>): Promise<T> {
+  pendingDetections += 1
+  try {
+    return await work
+  } finally {
+    pendingDetections -= 1
+  }
+}
+
 async function readPlan($: EngineInterface, dir: string, relative: string): Promise<PlanInfo | undefined> {
   const entries = await $.fs.list(dir)
   if (!entries.some(entry => entry.name === 'spec.md')) {
@@ -307,7 +326,7 @@ async function syncPlans($: EngineInterface, settings: Settings): Promise<void> 
   }
 }
 
-async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, list: WatchedPr[], isPane: boolean, settings: Settings): Promise<BandContext> {
+async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, list: WatchedPr[], isPane: boolean, settings: Settings, width = DEFAULT_WIDTH): Promise<BandContext> {
   return {
     el,
     list,
@@ -320,6 +339,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     limit: isPane ? Number.POSITIVE_INFINITY : settings.maxRows,
     doneExpanded: isPane || (await read($, doneExpanded)),
     isPane,
+    width,
     currentSession: await read($, sessionId),
     plans: settings.tasks ? await read($, plans) : [],
     actions: {
@@ -391,14 +411,14 @@ async function copySummary($: EngineInterface, surface: Parameters<EngineInterfa
   $.ui.toast(copied.isCopied ? 'Summary copied' : 'Could not copy the summary')
 }
 
-async function drawBand($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings) {
-  return renderBand(await bandContext($, el, await visible($, settings), false, settings))
+async function drawBand($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings, width?: number) {
+  return renderBand(await bandContext($, el, await visible($, settings), false, settings, width || DEFAULT_WIDTH))
 }
 
-async function drawOverview($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings) {
+async function drawOverview($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings, width?: number) {
   const session = await read($, sessionId)
   const all = await everyEnabled($, settings)
-  const context = await bandContext($, el, await scopedList($, settings), true, settings)
+  const context = await bandContext($, el, await scopedList($, settings), true, settings, width || DEFAULT_WIDTH)
 
   return renderOverview({
     ...context,
@@ -441,16 +461,18 @@ export const register: Register = (on, options) => {
     $.clock.every(TICK_MS, () => void refresh($, settings))
     $.clock.after(0, () => void refresh($, settings))
     if (settings.tasks) {
-      $.clock.after(0, () => void syncPlans($, settings))
+      $.clock.after(0, () => void detecting(syncPlans($, settings)))
       $.clock.every(PLANS_SCAN_MS, () => void syncPlans($, settings))
     }
     if (settings.currentBranch) {
       $.clock.after(0, () =>
-        void currentBranchSeeds(ioOf($), settings).then(async seeds => {
-          for (const seed of seeds) {
-            await watch($, seed, settings)
-          }
-        }),
+        void detecting(
+          currentBranchSeeds(ioOf($), settings).then(async seeds => {
+            for (const seed of seeds) {
+              await watch($, seed, settings)
+            }
+          }),
+        ),
       )
     }
 
@@ -520,23 +542,25 @@ export const register: Register = (on, options) => {
 
     const list = await visible($, settings)
     const lines = list.map(p => `${heading(p)} · ${describe(p.phase, p.checks)}`)
-    return { text: lines.length === 0 ? 'No PRs being watched.' : lines.join('\n') }
+    const empty = pendingDetections > 0 ? 'No PRs yet: still checking the current branch and task PRs, try again in a few seconds.' : 'No PRs being watched.'
+    return { text: lines.length === 0 ? empty : lines.join('\n') }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const startedAt = await $.clock.now()
     const ran = await next(e)
-    if (!ran.text || ran.isError) {
+    if (ran.deny !== undefined) {
       return ran
     }
-    if (/\baz\s+repos\s+pr\s+create\b/.test(e.command)) {
-      const id = parsePrId(ran.text)
-      if (id) {
+    const output = ran.text ?? ''
+    if (settings.ado && ADO_PR_CREATE.test(e.command)) {
+      for (const id of parsePrIds(output, e.command)) {
         await watch($, { key: adoKey(id), provider: 'ado', id, repo: '' }, settings)
       }
+      $.clock.after(0, () => void watchRecentlyCreated($, startedAt - RECENT_SLACK_MS, settings).catch(() => undefined))
     }
     if (/\bgh\s+pr\s+create\b/.test(e.command)) {
-      const ref = parseGithubRef(ran.text, settings.githubHosts)
-      if (ref) {
+      for (const ref of parseGithubRefs(output, settings.githubHosts)) {
         await watch($, { key: githubKey(ref), provider: 'github', id: ref.number, host: ref.host, owner: ref.owner, repo: ref.repo }, settings)
       }
     }
@@ -554,8 +578,7 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: 'mcp__azure-devops__repo_pull_request_write' }, async ($, e, next) => {
     const ran = await next(e)
     if (ran.text && !ran.isError) {
-      const id = parsePrId(ran.text)
-      if (id) {
+      for (const id of parsePrIds(ran.text)) {
         await watch($, { key: adoKey(id), provider: 'ado', id, repo: '' }, settings)
       }
     }
@@ -569,8 +592,8 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
-    return drawBand($, $.ui.resolve(e), settings)
+    return drawBand($, $.ui.resolve(e), settings, e.props.bodyColumns)
   })
 
-  on('ui.render', { component: 'Pane', requestId: OVERVIEW }, async ($, e) => drawOverview($, $.ui.resolve(e), settings))
+  on('ui.render', { component: 'Pane', requestId: OVERVIEW }, async ($, e) => drawOverview($, $.ui.resolve(e), settings, e.props.bodyColumns))
 }
