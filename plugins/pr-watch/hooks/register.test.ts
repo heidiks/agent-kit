@@ -61,6 +61,13 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect((await ui.find({ key: 'collapse' }))?.text).toBe('▾ expand')
 
     await ui.press({ key: 'rm-ado:123' })
+    expect(await ui.find({ text: 'remove?' })).toBeDefined()
+    await ui.press({ key: 'rm-no-ado:123' })
+    expect(await ui.find({ text: 'remove?' })).toBe(undefined)
+    expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).not.toBe('No PRs being watched.')
+
+    await ui.press({ key: 'rm-ado:123' })
+    await ui.press({ key: 'rm-yes-ado:123' })
     expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toBe('No PRs being watched.')
   })
 }
@@ -222,7 +229,67 @@ test('open button sends the PR URL to the system opener', async ($, on) => {
   await clock.advance(1)
 
   const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
-  expect((await ui.find({ key: 'open-ado:123' }))?.text).toBe('↗')
+  expect((await ui.find({ key: 'open-ado:123' }))?.props.variant).toBe('primary')
   await ui.press({ key: 'open-ado:123' })
   expect(opened).toEqual([['open', `${WEB}/pullrequest/123`]])
+})
+
+test('remove confirmation expires after a few seconds', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('process.run', (_$, e) => ({ value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+
+  await $.command.run({ command: 'pr-watch', args: '123' } as never)
+  await clock.advance(1)
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+
+  await ui.press({ key: 'rm-ado:123' })
+  expect(await ui.find({ key: 'rm-yes-ado:123' })).toBeDefined()
+  await clock.advance(6_001)
+  expect(await ui.find({ key: 'rm-yes-ado:123' })).toBe(undefined)
+  expect(await ui.find({ key: 'rm-ado:123' })).toBeDefined()
+})
+
+const ABANDONED = { ...PR_SHOW, status: 'abandoned' }
+
+function manyAnswer(argv: readonly string[]): string {
+  const id = Number(argv[argv.indexOf('--id') + 1])
+  if (argv.includes('policy')) return JSON.stringify(POLICIES)
+  return JSON.stringify(id >= 6 ? ABANDONED : PR_SHOW)
+}
+
+test('long lists: band shows maxRows, groups finished PRs and opens the rest in a pane', { options: { maxRows: 3 } }, async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const opened: string[] = []
+  on('process.run', (_$, e) => ({
+    value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
+  on('ui.open', (_$, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } } as never
+  })
+
+  for (const id of [1, 2, 3, 4, 5, 6, 7]) {
+    await $.command.run({ command: 'pr-watch', args: String(id) } as never)
+  }
+  await clock.advance(1)
+
+  const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect((await band.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(3)
+  expect(await band.find({ type: 'Text', text: '✓ 2 finished' })).toBeDefined()
+  expect((await band.find({ key: 'more' }))?.text).toContain('+2 more')
+
+  await band.press({ key: 'toggle-done' })
+  expect((await band.find({ key: 'more' }))?.text).toContain('+4 more')
+
+  await band.press({ key: 'more' })
+  expect(opened).toEqual(['pr-watch'])
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch',
+    props: { title: 'Pull requests', isFocused: true, bodyColumns: 120 } as never,
+  })
+  expect((await pane.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(7)
+  expect(await pane.find({ key: 'more' })).toBe(undefined)
 })

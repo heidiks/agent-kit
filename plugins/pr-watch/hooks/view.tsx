@@ -1,7 +1,7 @@
 import type { Color, EngineInterface, RenderChildren, TextHoverProps } from 'claude-code'
 
 import type { BandStyle, Check, CheckState, Phase, Tone, WatchedPr } from '../types'
-import { ago, ICONS, isStale, MAX_INLINE_STAGES, overallState, PHASE_LABELS, SPINNER } from './ado'
+import { ago, byUrgency, ICONS, isStale, MAX_INLINE_STAGES, overallState, PHASE_LABELS, SPINNER } from './ado'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -16,6 +16,10 @@ export function toneOf(theme: unknown): Tone {
 
 export type BandActions = {
   remove: (key: string) => void
+  askRemove: (key: string) => void
+  cancelRemove: () => void
+  showAll: () => void
+  toggleDone: () => void
   open: (url: string) => void
   clearDone: () => void
   toggleCollapse: () => void
@@ -32,6 +36,10 @@ export type BandContext = {
   collapsed: boolean
   style: BandStyle
   tone: Tone
+  pendingRemove: string
+  limit: number
+  doneExpanded: boolean
+  isPane: boolean
   actions: BandActions
 }
 
@@ -127,20 +135,31 @@ export function renderBand(ctx: BandContext) {
     )
 
   const removeButton = (pr: WatchedPr) => (
-    <Button key={`rm-${pr.key}`} plain dimColor={buttonDim} label="×" hover={hoverOf(`rm-${pr.key}`, 'error')} onPress={() => actions.remove(pr.key)} />
+    <Button key={`rm-${pr.key}`} plain dimColor={buttonDim} label="×" hover={hoverOf(`rm-${pr.key}`, 'error')} onPress={() => actions.askRemove(pr.key)} />
   )
 
   const openButton = (pr: WatchedPr) =>
     pr.url !== '' && (
-      <Button key={`open-${pr.key}`} plain dimColor={buttonDim} label="↗" hover={hoverOf(`open-${pr.key}`)} onPress={() => actions.open(pr.url)} />
+      <Button key={`open-${pr.key}`} variant="primary" label="↗ open" onPress={() => actions.open(pr.url)} />
     )
 
-  const rowActions = (pr: WatchedPr) => (
+  const confirmRemove = (pr: WatchedPr) => (
     <Box flexDirection="row" gap={1}>
-      {openButton(pr)}
-      {removeButton(pr)}
+      <Text color="error">remove?</Text>
+      <Button key={`rm-yes-${pr.key}`} plain label="yes" hover={hoverOf(`rm-yes-${pr.key}`, 'error')} onPress={() => actions.remove(pr.key)} />
+      <Button key={`rm-no-${pr.key}`} plain label="no" hover={hoverOf(`rm-no-${pr.key}`)} onPress={actions.cancelRemove} />
     </Box>
   )
+
+  const rowActions = (pr: WatchedPr) =>
+    ctx.pendingRemove === pr.key ? (
+      confirmRemove(pr)
+    ) : (
+      <Box flexDirection="row" gap={1}>
+        {openButton(pr)}
+        {removeButton(pr)}
+      </Box>
+    )
 
   const titleText = (pr: WatchedPr) => (
     <Box flexShrink={1} flexGrow={1}>
@@ -321,7 +340,7 @@ export function renderBand(ctx: BandContext) {
       <Box width={COLUMNS.phase}><Text color={faint} bold>PHASE</Text></Box>
       <Box flexGrow={1}><Text color={faint} bold>CHECKS</Text></Box>
       <Box width={COLUMNS.age}><Text color={faint} bold>SINCE</Text></Box>
-      <Box width={4}><Text> </Text></Box>
+      <Box width={15}><Text> </Text></Box>
     </Box>
   )
 
@@ -337,7 +356,7 @@ export function renderBand(ctx: BandContext) {
           {pr.checks.map(c => checkItem(collapsed ? { ...c, note: undefined } : c))}
         </Box>
         <Box width={COLUMNS.age}><Text color={faint}>{pr.changedAt ? ago(now - pr.changedAt) : '-'}</Text></Box>
-        <Box width={4}>{rowActions(pr)}</Box>
+        <Box width={15}>{rowActions(pr)}</Box>
       </Box>
       {errorLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
       {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr))}
@@ -347,7 +366,11 @@ export function renderBand(ctx: BandContext) {
   const counts = tally(list.map(p => overallState(p.checks, p.phase)))
   const lastChecked = Math.max(0, ...list.map(p => p.checkedAt ?? 0))
   const hasStale = list.some(p => isStale(p, now))
-  const hasDone = list.some(p => p.isDone)
+  const ordered = byUrgency(list)
+  const done = ordered.filter(p => p.isDone)
+  const candidates = [...ordered.filter(p => !p.isDone), ...(ctx.doneExpanded ? done : [])]
+  const rows = candidates.slice(0, ctx.limit)
+  const hiddenCount = candidates.length - rows.length
 
   const header = (
     <Box flexDirection="row" gap={2}>
@@ -361,22 +384,35 @@ export function renderBand(ctx: BandContext) {
       <Box flexGrow={1} />
       <Button key="style" plain dimColor={buttonDim} hover={hoverOf('btn-style')} label={`▤ ${ctx.style}`} onPress={actions.cycleStyle} />
       <Button key="collapse" plain dimColor={buttonDim} hover={hoverOf('btn-collapse')} label={collapsed ? '▾ expand' : '▴ collapse'} onPress={actions.toggleCollapse} />
-      {hasDone && <Button key="clear" plain dimColor={buttonDim} hover={hoverOf('btn-clear')} label="⌫ clear done" onPress={actions.clearDone} />}
-      <Button key="hide" plain dimColor={buttonDim} hover={hoverOf('btn-hide')} label="⊖ hide" onPress={actions.hide} />
+      {!ctx.isPane && <Button key="hide" plain dimColor={buttonDim} hover={hoverOf('btn-hide')} label="⊖ hide" onPress={actions.hide} />}
     </Box>
   )
 
   const body = {
-    tree: () => list.map(pr => tree(pr)),
-    cards: () => list.map(pr => card(pr)),
-    trail: () => list.map(pr => trail(pr)),
-    table: () => [tableHeader, ...list.map(pr => tableRow(pr))],
+    tree: () => rows.map(pr => tree(pr)),
+    cards: () => rows.map(pr => card(pr)),
+    trail: () => rows.map(pr => trail(pr)),
+    table: () => [tableHeader, ...rows.map(pr => tableRow(pr))],
   }[ctx.style]
+
+  const footer = (done.length > 0 || hiddenCount > 0) && (
+    <Box flexDirection="row" gap={2} paddingLeft={1}>
+      {done.length > 0 && <Text color={STATE_COLORS.ok}>{`✓ ${done.length} finished`}</Text>}
+      {done.length > 0 && !ctx.isPane && (
+        <Button key="toggle-done" plain dimColor={buttonDim} hover={hoverOf('btn-toggle-done')} label={ctx.doneExpanded ? '▴ hide' : '▾ show'} onPress={actions.toggleDone} />
+      )}
+      {done.length > 0 && <Button key="clear" plain dimColor={buttonDim} hover={hoverOf('btn-clear')} label="⌫ clear" onPress={actions.clearDone} />}
+      {hiddenCount > 0 && (
+        <Button key="more" variant="primary" label={`+${hiddenCount} more ›`} onPress={actions.showAll} />
+      )}
+    </Box>
+  )
 
   return (
     <Box flexDirection="column" paddingX={1}>
       {header}
       {body()}
+      {footer}
     </Box>
   )
 }

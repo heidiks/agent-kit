@@ -48,6 +48,8 @@ declare module 'claude-code' {
       isHidden: boolean
       style: BandStyle
       tone: Tone
+      pendingRemove: string
+      doneExpanded: boolean
     }
   }
 }

@@ -4,6 +4,7 @@ import type { WatchedPr } from '../types'
 import {
   ago,
   applyCheck,
+  byUrgency,
   describe,
   isStale,
   gateVerdict,
@@ -194,4 +195,16 @@ test('isStale: errors or a check older than 3 minutes, never finished PRs', () =
 
 test('ago scales from seconds to days', () => {
   expect([ago(12_000), ago(40 * 60_000), ago(5 * 3_600_000), ago(3 * 86_400_000)]).toEqual(['12s', '40m', '5h', '3d'])
+})
+
+test('byUrgency: failing first, then waiting, running, ok, finished last; stable within a rank', () => {
+  const list = [
+    watched({ id: 1, checks: [{ name: 'build', state: 'ok' }] }),
+    watched({ id: 2, checks: [{ name: 'build', state: 'running' }] }),
+    watched({ id: 3, checks: [{ name: 'build', state: 'fail' }], isDone: true }),
+    watched({ id: 4, checks: [{ name: 'review', state: 'pending' }] }),
+    watched({ id: 5, checks: [{ name: 'build', state: 'fail' }] }),
+    watched({ id: 6, checks: [{ name: 'build', state: 'ok' }] }),
+  ]
+  expect(byUrgency(list).map(p => p.id)).toEqual([5, 4, 2, 1, 6, 3])
 })

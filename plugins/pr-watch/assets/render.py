@@ -9,7 +9,7 @@ THEMES = {
                   success='#1a7f37', error='#cf222e', warning='#9a6700', suggestion='#5769f7', merged='#8250df', claude='#c4562e', link='#0969da'),
 }
 
-W = 88
+W = 102
 
 def pad(segs, width):
     n = sum(len(t) for t, *_ in segs)
@@ -34,14 +34,14 @@ LINES = [
     row(cell([('', 'text')], 3), cell([('SRC', 'faint', 'b')], 4), cell([('PR', 'faint', 'b')], 8), cell([('REPO', 'faint', 'b')], 18), cell([('PHASE', 'faint', 'b')], 9),
         cell([('CHECKS', 'faint', 'b')], 38), cell([('SINCE', 'faint', 'b')], 6)),
     row(cell([(' ✗', 'error')], 3), cell([('ado', 'faint')], 4), cell([('!4242', 'link', 'bu')], 8), cell([('web-app', 'faint')], 18), cell([('gate', 'suggestion')], 9),
-        cell([('✗ ', 'error'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('Code-Reviewers', 'text')], 38), cell([('40m', 'faint')], 6), [('×', 'dim')]),
-    row(cell([('', 'text')], 15), cell([('└ Run Lint: Bash exited with code \'2\'.', 'error')], 58), [('⌕ investigate', 'dim')]),
+        cell([('✗ ', 'error'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('Code-Reviewers', 'text')], 38), cell([('40m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
+    row(cell([('', 'text')], 15), cell([('└ Run Lint: Bash exited with code \'2\'.', 'error')], 71), [('⌕ investigate', 'dim')]),
     row(cell([(' ⠹', 'suggestion')], 3), cell([('gh', 'faint')], 4), cell([('#300', 'link', 'bu')], 8), cell([('octo-org/website', 'faint')], 18), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('test', 'link', 'u'), ('  ', 'text'), ('⠹ ', 'suggestion'), ('deploy', 'link', 'u')], 38), cell([('3m', 'faint')], 6), [('×', 'dim')]),
+        cell([('✓ ', 'success'), ('test', 'link', 'u'), ('  ', 'text'), ('⠹ ', 'suggestion'), ('deploy', 'link', 'u')], 38), cell([('3m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
     row(cell([(' ◐', 'warning')], 3), cell([('gh', 'faint')], 4), cell([('#298', 'link', 'bu')], 8), cell([('octo-org/website', 'faint')], 18), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('prod', 'link', 'u'), (' (awaiting approval)', 'warning')], 38), cell([('2h', 'faint')], 6), [('×', 'dim')]),
+        cell([('✓ ', 'success'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('prod', 'link', 'u'), (' (awaiting approval)', 'warning')], 38), cell([('2h', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
     row(cell([(' ✓', 'success')], 3), cell([('ado', 'faint')], 4), cell([('!4199', 'link', 'bu')], 8), cell([('api', 'faint')], 18), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('CI', 'link', 'u'), ('  ', 'text'), ('✓ ', 'success'), ('CD', 'link', 'u')], 38), cell([('1d', 'faint')], 6), [('×', 'dim')]),
+        cell([('✓ ', 'success'), ('CI', 'link', 'u'), ('  ', 'text'), ('✓ ', 'success'), ('CD', 'link', 'u')], 38), cell([('1d', 'faint')], 6), [('remove? ', 'error'), ('yes', 'text'), (' ', 'text'), ('no', 'text')]),
 ]
 
 CW, LH, FS = 8.4, 21, 14

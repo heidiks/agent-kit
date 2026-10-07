@@ -291,6 +291,16 @@ export function isStale(pr: WatchedPr, now: number): boolean {
   return !pr.isDone && (pr.error !== undefined || (pr.checkedAt !== undefined && now - pr.checkedAt > STALE_AFTER_MS))
 }
 
+const URGENCY: Record<CheckState, number> = { fail: 0, pending: 1, warn: 2, running: 3, queued: 4, ok: 5, skipped: 6 }
+
+export function byUrgency(list: WatchedPr[]): WatchedPr[] {
+  const rank = (pr: WatchedPr) => (pr.isDone ? 10 : 0) + URGENCY[overallState(pr.checks, pr.phase)]
+  return list
+    .map((pr, index) => ({ pr, index }))
+    .sort((a, b) => rank(a.pr) - rank(b.pr) || a.index - b.index)
+    .map(entry => entry.pr)
+}
+
 export function pollDelay(pr: WatchedPr): number {
   if (pr.error) return SLOW_POLL_MS
   if (pr.phase === 'loading' || pr.phase === 'merged') return FAST_POLL_MS
