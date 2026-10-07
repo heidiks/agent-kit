@@ -25,7 +25,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok), newest first within the same state. The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
 - **Modes:** `⇕` cycles the band between `full`, `compact` (one row per PR) and `mini` (one line: counts and the most urgent PR).
 - **System notifications:** failures, changes requested, pending approvals, merges and finished deploys show up outside the terminal (macOS via `terminal-notifier` or `osascript`, Linux via `notify-send`). With `terminal-notifier` installed, clicking one opens the PR.
-- **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, an `all` / `this session` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
+- **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, a `this session` / `all` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
 - Four layouts (`table`, `tree`, `cards`, `trail`); follows light and dark themes.
 
 ## Usage
@@ -42,7 +42,7 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 /pr-watch rm <target> | clear | hide | show | style [table|tree|cards|trail]
 ```
 
-The watched list is shared across sessions; finished PRs drop off 24h after they settle.
+Each session watches its own PRs: the ones created, detected or added in it. Only those show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session, and its PRs. The list itself is saved across sessions: the overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
 
 ## Spec tasks
 

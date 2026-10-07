@@ -499,3 +499,39 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')
   expect(prompts[0]).toContain('docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md')
 })
+
+test('session scope: another session PRs stay out of the band and polling until brought here', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  const other = {
+    key: 'ado:77', provider: 'ado', id: 77, repo: 'web-app', project: 'Contoso', title: 'other front', url: `${WEB}/pullrequest/77`,
+    phase: 'gate', checks: [{ name: 'build', state: 'running' }], isDraft: false, isFailed: false, isDone: false, sessions: ['session-b'],
+  }
+  mock.store(on, { prs: [other] })
+  const polled: string[] = []
+  on('process.run', (_$, e) => {
+    if (e.argv[0] === 'az') polled.push(e.argv.join(' '))
+    const stdout = e.argv.includes('policy') ? JSON.stringify(POLICIES) : e.argv[0] === 'az' ? JSON.stringify(PR_SHOW) : ''
+    return { value: { exitCode: e.argv[0] === 'git' ? 1 : 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', () => ({ value: false }) as never)
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(20_000)
+  expect(polled).toEqual([])
+  expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toBe('No PRs being watched.')
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
+  })
+  expect((await pane.find({ key: 'scope-session' }))?.text).toContain('this session (0)')
+  await pane.press({ key: 'scope-all' })
+  await pane.press({ key: 'adopt-ado:77' })
+  await clock.advance(1)
+  expect(polled.some(cmd => cmd.includes('--id 77'))).toBe(true)
+  expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toContain('PR 77')
+})

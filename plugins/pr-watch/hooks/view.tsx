@@ -19,6 +19,7 @@ export function toneOf(theme: unknown): Tone {
 
 export type BandActions = {
   remove: (key: string) => void
+  adopt: (key: string) => void
   askRemove: (key: string) => void
   cancelRemove: () => void
   openOverview: () => void
@@ -45,6 +46,7 @@ export type BandContext = {
   limit: number
   doneExpanded: boolean
   isPane: boolean
+  currentSession: string
   plans: PlanInfo[]
   actions: BandActions
 }
@@ -92,6 +94,7 @@ export function renderBand(ctx: BandContext) {
   const { Box, Button, Link, Text } = ctx.el
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
+  const isCurrent = (pr: WatchedPr) => ctx.currentSession === '' || (pr.sessions ?? []).includes(ctx.currentSession)
   const linked = (pr: WatchedPr) => taskForPr(pr, ctx.plans)
   const hasTasks = list.some(pr => linked(pr) !== undefined)
   const isDark = ctx.tone === 'dark'
@@ -161,7 +164,12 @@ export function renderBand(ctx: BandContext) {
   )
 
   const rowActions = (pr: WatchedPr) =>
-    ctx.pendingRemove === pr.key ? (
+    !isCurrent(pr) ? (
+      <Box flexDirection="row" gap={1}>
+        {openButton(pr)}
+        <Button key={`adopt-${pr.key}`} plain hover={hoverOf(`adopt-${pr.key}`)} label="+ watch here" onPress={() => actions.adopt(pr.key)} />
+      </Box>
+    ) : ctx.pendingRemove === pr.key ? (
       confirmRemove(pr)
     ) : (
       <Box flexDirection="row" gap={1}>
@@ -403,7 +411,7 @@ export function renderBand(ctx: BandContext) {
 
   const counts = tally(list.map(p => overallState(p.checks, p.phase)))
   const lastChecked = Math.max(0, ...list.map(p => p.checkedAt ?? 0))
-  const hasStale = list.some(p => isStale(p, now))
+  const hasStale = list.some(p => isCurrent(p) && isStale(p, now))
   const ordered = byUrgency(list)
   const awaitsMarkDone = (pr: WatchedPr) => {
     const link = linked(pr)
