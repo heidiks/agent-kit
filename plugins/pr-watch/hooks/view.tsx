@@ -16,6 +16,7 @@ export function toneOf(theme: unknown): Tone {
 
 export type BandActions = {
   remove: (key: string) => void
+  open: (url: string) => void
   clearDone: () => void
   toggleCollapse: () => void
   hide: () => void
@@ -129,6 +130,18 @@ export function renderBand(ctx: BandContext) {
     <Button key={`rm-${pr.key}`} plain dimColor={buttonDim} label="×" hover={hoverOf(`rm-${pr.key}`, 'error')} onPress={() => actions.remove(pr.key)} />
   )
 
+  const openButton = (pr: WatchedPr) =>
+    pr.url !== '' && (
+      <Button key={`open-${pr.key}`} plain dimColor={buttonDim} label="↗" hover={hoverOf(`open-${pr.key}`)} onPress={() => actions.open(pr.url)} />
+    )
+
+  const rowActions = (pr: WatchedPr) => (
+    <Box flexDirection="row" gap={1}>
+      {openButton(pr)}
+      {removeButton(pr)}
+    </Box>
+  )
+
   const titleText = (pr: WatchedPr) => (
     <Box flexShrink={1} flexGrow={1}>
       <Text wrap="truncate-end" {...quiet}>{pr.title}</Text>
@@ -200,7 +213,7 @@ export function renderBand(ctx: BandContext) {
       {pr.isDraft && tag('draft', 'inactive')}
       {titleText(pr)}
       {extra}
-      {removeButton(pr)}
+      {rowActions(pr)}
     </Box>
   )
 
@@ -231,7 +244,7 @@ export function renderBand(ctx: BandContext) {
           {tag(PHASE_LABELS[pr.phase], PHASE_COLORS[pr.phase])}
           {pr.isDraft && tag('draft', 'inactive')}
           <Box flexGrow={1} />
-          {removeButton(pr)}
+          {rowActions(pr)}
         </Box>
         {!collapsed && (
           <Box paddingLeft={2}>
@@ -308,7 +321,7 @@ export function renderBand(ctx: BandContext) {
       <Box width={COLUMNS.phase}><Text color={faint} bold>PHASE</Text></Box>
       <Box flexGrow={1}><Text color={faint} bold>CHECKS</Text></Box>
       <Box width={COLUMNS.age}><Text color={faint} bold>SINCE</Text></Box>
-      <Box width={2}><Text> </Text></Box>
+      <Box width={4}><Text> </Text></Box>
     </Box>
   )
 
@@ -324,7 +337,7 @@ export function renderBand(ctx: BandContext) {
           {pr.checks.map(c => checkItem(collapsed ? { ...c, note: undefined } : c))}
         </Box>
         <Box width={COLUMNS.age}><Text color={faint}>{pr.changedAt ? ago(now - pr.changedAt) : '-'}</Text></Box>
-        <Box width={2}>{removeButton(pr)}</Box>
+        <Box width={4}>{rowActions(pr)}</Box>
       </Box>
       {errorLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
       {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr))}
