@@ -2,7 +2,7 @@ import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverPr
 
 import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
-import { activePlans, canMarkDone, fileUrl, normalizeUrl, prsForTask, TASK_STATES, taskForPr } from './tasks'
+import { activePlans, canMarkDone, fileUrl, normalizeUrl, prsForTask, readyToMarkDone, TASK_STATES, taskLabel, tasksForPr, type TaskLink } from './tasks'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -31,7 +31,7 @@ export type BandActions = {
   hide: () => void
   cycleStyle: () => void
   investigate: (pr: WatchedPr, item: Check) => void
-  markDone: (plan: PlanInfo, task: TaskInfo, pr: WatchedPr) => void
+  markDone: (links: TaskLink[], pr: WatchedPr) => void
   watchUrl: (url: string) => void
 }
 
@@ -105,8 +105,8 @@ export function renderBand(ctx: BandContext) {
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
   const isCurrent = (pr: WatchedPr) => ctx.currentSession === '' || (pr.sessions ?? []).includes(ctx.currentSession)
-  const linked = (pr: WatchedPr) => taskForPr(pr, ctx.plans)
-  const hasTasks = list.some(pr => linked(pr) !== undefined)
+  const linksOf = (pr: WatchedPr) => tasksForPr(pr, ctx.plans)
+  const hasTasks = list.some(pr => linksOf(pr).length > 0)
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const quiet = isDark ? { dimColor: true } : { color: 'inactive' as Color }
@@ -247,14 +247,14 @@ export function renderBand(ctx: BandContext) {
   )
 
   const markDoneLine = (pr: WatchedPr, indent: number) => {
-    const link = linked(pr)
-    if (!link || !canMarkDone(link.task, pr)) {
+    const ready = readyToMarkDone(pr, ctx.plans)
+    if (ready.length === 0) {
       return undefined
     }
     return (
       <Box flexDirection="row" gap={1} paddingLeft={indent}>
         <Text color="success">└ merged and green:</Text>
-        <Button key={`done-${pr.key}`} variant="primary" label={`✓ mark ${link.task.id} done`} onPress={() => actions.markDone(link.plan, link.task, pr)} />
+        <Button key={`done-${pr.key}`} variant="primary" label={`✓ mark ${ready.map(link => link.task.id).join(', ')} done`} onPress={() => actions.markDone(ready, pr)} />
       </Box>
     )
   }
@@ -388,11 +388,11 @@ export function renderBand(ctx: BandContext) {
     if (ctx.expanded !== pr.key) {
       return undefined
     }
-    const link = linked(pr)
+    const links = linksOf(pr)
     const facts = [
       `repo ${fullRepo(pr)}`,
       pr.sourceBranch && `${pr.sourceBranch} → ${pr.targetBranch ?? '?'}`,
-      link && `${link.plan.id}/${link.task.id}`,
+      links.length > 0 && `${links[0]?.plan.id}/${links.map(link => link.task.id).join(', ')}`,
       pr.createdAt && `opened ${ago(now - pr.createdAt)} ago`,
     ].filter(Boolean)
     return (
@@ -444,7 +444,7 @@ export function renderBand(ctx: BandContext) {
         {cellOf(COLUMNS.mark, mark(overallState(pr.checks, pr.phase)))}
         {cellOf(COLUMNS.origin, <Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text>)}
         {cellOf(COLUMNS.pr, prLink(pr))}
-        {hasTasks && cellOf(COLUMNS.task, <Text color={linked(pr) ? 'suggestion' : faint}>{linked(pr)?.task.id ?? '-'}</Text>)}
+        {hasTasks && cellOf(COLUMNS.task, <Text color={linksOf(pr).length > 0 ? 'suggestion' : faint}>{taskLabel(linksOf(pr))}</Text>)}
         {showRepo && cellOf(COLUMNS.repo, expandButton(pr, 'repo', repoName(pr), COLUMNS.repo - 1), true)}
         {showTitle && cellOf(COLUMNS.title, expandButton(pr, 'title', pr.title, COLUMNS.title - 1), true)}
         {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
@@ -472,10 +472,7 @@ export function renderBand(ctx: BandContext) {
   const lastChecked = Math.max(0, ...list.map(p => p.checkedAt ?? 0))
   const hasStale = list.some(p => isCurrent(p) && isStale(p, now))
   const ordered = byUrgency(list)
-  const awaitsMarkDone = (pr: WatchedPr) => {
-    const link = linked(pr)
-    return link !== undefined && canMarkDone(link.task, pr)
-  }
+  const awaitsMarkDone = (pr: WatchedPr) => readyToMarkDone(pr, ctx.plans).length > 0
   const done = ordered.filter(p => p.isDone && !awaitsMarkDone(p))
   const candidates = [...ordered.filter(p => !p.isDone || awaitsMarkDone(p)), ...(ctx.doneExpanded ? done : [])]
   const rows = candidates.slice(0, ctx.limit)
@@ -619,7 +616,7 @@ export function renderOverview(ctx: OverviewContext) {
           </Box>
         )}
         {pr && canMarkDone(task, pr) && (
-          <Button key={`done-${pr.key}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone(plan, task, pr)} />
+          <Button key={`done-${pr.key}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone([{ plan, task }], pr)} />
         )}
         {!pr && unwatched[0] && (
           <Button key={`watch-${task.prd}-${task.id}`} plain hover={hoverOf(`watch-${task.prd}-${task.id}`)} label="+ watch PR" onPress={() => ctx.actions.watchUrl(unwatched[0] ?? '')} />

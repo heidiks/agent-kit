@@ -2,7 +2,7 @@
 
 A live band above the Claude Code prompt that follows your pull requests from review to deploy, for Azure DevOps and GitHub.
 
-[Install](#install) · [What it shows](#what-it-shows) · [Usage](#usage) · [Spec tasks](#spec-tasks) · [Requirements](#requirements) · [Options](#options) · [Privacy](#privacy)
+[Install](#install) · [What it shows](#what-it-shows) · [Commands](#commands) · [Spec tasks](#spec-tasks) · [Requirements](#requirements) · [Options](#options) · [Privacy](#privacy)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/band-dark.svg">
@@ -28,33 +28,47 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, a `this session` / `all` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
 - Four layouts (`table`, `tree`, `cards`, `trail`); follows light and dark themes.
 
-## Usage
+## Commands
 
-PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from the current branch on session start, or by hand:
+| Command | What it does |
+|---|---|
+| `/pr-watch` | List this session's PRs with their state |
+| `/pr-watch <id\|url\|owner/repo#N> ...` | Watch one or more PRs, separated by spaces or commas: an Azure DevOps id, any PR URL, or `owner/repo#N` |
+| `/pr-watch mine` | Your open PRs: those of the session repo go to the band, the others to the overview's `all` filter |
+| `/pr-watch rm <target> ...` | Stop watching one or more PRs |
+| `/pr-watch clear` | Drop finished PRs |
+| `/pr-watch clear-all` | Drop every PR of this session (kept for other sessions that watch it) |
+| `/pr-watch overview` | Popup with every PR, plans, timeline and an on-demand summary (alias `all`) |
+| `/pr-watch mode [full\|compact\|mini]` | Band size; without a value, cycles |
+| `/pr-watch style [table\|tree\|cards\|trail]` | Band layout; without a value, cycles |
+| `/pr-watch hide` / `show` | Hide the band (a summary goes to the status line) or show it again |
+| `/pr-watch help` | This list, inside the session |
 
-```
-/pr-watch 4242                                  # Azure DevOps PR id
-/pr-watch https://github.com/owner/repo/pull/7  # any PR URL
-/pr-watch owner/repo#7
-/pr-watch 19758 19759, owner/repo#7               # several at once, spaces or commas
-/pr-watch mine                                  # your open PRs: the session repo's go to the band, the rest to the overview's all filter
-/pr-watch overview                              # popup with every PR, timeline and summary
-/pr-watch mode [full|compact|mini]
-/pr-watch clear                                 # drop finished PRs
-/pr-watch clear-all                             # drop every PR of this session (kept for other sessions that watch it)
-/pr-watch rm <target> | hide | show | style [table|tree|cards|trail]
-```
+Inside a session you can also just ask Claude ("how do I watch a PR?", "why is my PR missing?"): the plugin ships a `pr-watch` skill with this guide.
 
-Each session watches its own PRs: the ones created, detected or added in it. Only those show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session, and its PRs. The list itself is saved across sessions: the overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
+### In the band
+
+| Control | Action |
+|---|---|
+| Title or repo | Opens a detail line: full title, repo path, source → target branch, linked task, age; click again or `▾` to close |
+| `↗ open` | Opens the PR in the browser |
+| `×` | Stops watching, after an inline `remove? yes no` |
+| `⌕ investigate` | Next to a failure: asks Claude to read the log and propose a fix |
+| `✓ mark … done` | On a merged, green PR of a spec task `In Review`: asks Claude to close the tasks |
+| `▤` / `⇕` / `⊞` / `⊖` | Layout / mode / overview / hide |
+
+### Which PRs a session watches
+
+Those created in it (any repository, via `az`, `gh` or the Azure DevOps REST API, whatever the output format), the open PR of the current branch, PRs of spec tasks `In Review`, and those added with `/pr-watch`. Only these show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session and its PRs. The saved list spans sessions: the overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
 
 ## Spec tasks
 
-When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task files under `docs/prd/`, pr-watch links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` line in the PR description, the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
+When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task files under `docs/prd/`, pr-watch links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` lines in the PR description (one PR may cover several tasks), the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
 
-- A `TASK` column appears in the table when any watched PR has a task.
+- A `TASK` column appears in the table when any watched PR has a task (`TASK-001+2` for a PR covering three).
 - PRs of tasks `In Review` are watched on session start.
 - The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (as `file://` links, opened by your terminal's default app) and the PR label the PR, so spec → task → PR is a click away.
-- When a task's PR is merged and its post-merge checks pass, `✓ mark done` asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
+- When a task's PR is merged and its post-merge checks pass, `✓ mark … done` (every ready task of that PR) asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
 
 Without `docs/prd/`, or with the option off, none of this shows up. The skill works without pr-watch too.
 

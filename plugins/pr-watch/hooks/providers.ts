@@ -27,7 +27,7 @@ import {
   type GhPr,
   type GhStatus,
 } from './github'
-import { parseTaskRef } from './tasks'
+import { parseTaskRefs } from './tasks'
 
 export type Io = {
   run: (argv: string[]) => Promise<{ exitCode: number; stdout: string; stderr: string }>
@@ -47,7 +47,7 @@ export type Settings = {
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>
 
-export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt' | 'taskRef' | 'sourceBranch' | 'targetBranch'>
+export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt' | 'taskRefs' | 'sourceBranch' | 'targetBranch'>
 
 export type Result<T> = { value: T; error?: undefined } | { value?: undefined; error: string }
 
@@ -118,7 +118,7 @@ async function checkAdo(io: Io, pr: WatchedPr, settings: Settings): Promise<Resu
     url: `${webUrl}/pullrequest/${id}`,
     isDraft: details.isDraft === true,
     createdAt: details.creationDate ? Date.parse(details.creationDate) : undefined,
-    taskRef: parseTaskRef(details.description, details.sourceRefName),
+    taskRefs: parseTaskRefs(details.description, details.sourceRefName),
     sourceBranch: shortRef(details.sourceRefName),
     targetBranch: shortRef(details.targetRefName),
   }
@@ -189,7 +189,7 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     url: details.url,
     isDraft: details.isDraft,
     createdAt: details.createdAt ? Date.parse(details.createdAt) : undefined,
-    taskRef: parseTaskRef(details.body, details.headRefName),
+    taskRefs: parseTaskRefs(details.body, details.headRefName),
     sourceBranch: details.headRefName || undefined,
     targetBranch: details.baseRefName || undefined,
   }
@@ -332,6 +332,10 @@ export async function sendNotification(io: Io, notification: Notification): Prom
 }
 
 const MINE_LIMIT = 30
+
+
+
+
 const RECENT_LIMIT = 20
 
 export async function recentAdoSeeds(io: Io, since: number): Promise<Seed[]> {
