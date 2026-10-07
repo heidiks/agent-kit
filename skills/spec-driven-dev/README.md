@@ -2,7 +2,7 @@
 
 An [Agent Skill](https://agentskills.io) that makes the agent define what and why before writing code, one phase at a time, and ask before moving on.
 
-[Install](#install) · [Phases](#phases) · [Files it writes](#files-it-writes) · [Index script](#index-script)
+[Install](#install) · [Phases](#phases) · [Files it writes](#files-it-writes) · [Index script](#index-script) · [Evals](#evals)
 
 ## Install
 
@@ -46,3 +46,13 @@ python3 scripts/prd_index.py            # write indexes
 python3 scripts/prd_index.py --check    # CI: fail on a stale index or an invalid status
 python3 scripts/prd_index.py --status   # every PRD with its phase and task progress
 ```
+
+## Evals
+
+`evals/` holds behavior checks run with `claude plugin eval`: the interview asks one question at a time, lite mode stops at a checkpoint before any code, and resuming reports the right phase and next step without editing files. Each case builds its own small repo with a scaffold script.
+
+```bash
+claude plugin eval skills/spec-driven-dev --scaffold --allow-tools Write Edit Bash --max-cost-usd 5
+```
+
+They spend model tokens on every run, so they are run by hand, not in CI.
