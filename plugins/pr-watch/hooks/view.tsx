@@ -1,7 +1,7 @@
 import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverProps } from 'claude-code'
 
 import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, SummaryStatus, Tone, WatchedPr } from '../types'
-import { ago, byUrgency, ICONS, isStale, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
+import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -360,7 +360,13 @@ export function renderBand(ctx: BandContext) {
         <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={2} overflow="hidden">
           {pr.checks.map(c => checkItem(collapsed ? { ...c, note: undefined } : c))}
         </Box>
-        <Box width={COLUMNS.age}><Text color={faint}>{pr.changedAt ? ago(now - pr.changedAt) : '-'}</Text></Box>
+        <Box width={COLUMNS.age}>
+          {isWaitingTooLong(pr, now) ? (
+            <Text color="warning" bold>{`! ${ago(now - (pr.changedAt ?? now))}`}</Text>
+          ) : (
+            <Text color={faint}>{pr.changedAt ? ago(now - pr.changedAt) : '-'}</Text>
+          )}
+        </Box>
         <Box width={15}>{rowActions(pr)}</Box>
       </Box>
       {errorLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}

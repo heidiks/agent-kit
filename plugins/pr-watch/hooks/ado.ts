@@ -269,6 +269,11 @@ export function describe(phase: Phase, checks: Check[]): string {
 
 export const STALE_AFTER_MS = 3 * 60 * 1000
 export const HISTORY_LIMIT = 20
+export const LONG_WAIT_MS = 24 * 60 * 60 * 1000
+
+export function isWaitingTooLong(pr: WatchedPr, now: number): boolean {
+  return !pr.isDone && pr.changedAt !== undefined && overallState(pr.checks, pr.phase) === 'pending' && now - pr.changedAt > LONG_WAIT_MS
+}
 
 export type CheckOutcome = { value: Verdict & Partial<WatchedPr>; error?: undefined } | { value?: undefined; error: string }
 

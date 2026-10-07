@@ -5,6 +5,7 @@ import {
   ago,
   applyCheck,
   byUrgency,
+  isWaitingTooLong,
   notificationFor,
   describe,
   isStale,
@@ -257,4 +258,13 @@ test('notificationFor: important events only, never the first read', () => {
   const shipped = { ...merged, isDone: true, checks: [{ name: 'CD', state: 'ok' as const }] }
   expect(notificationFor(merged, shipped, 'important')?.message).toBe('✓ shipped: every post-merge check passed')
   expect(notificationFor(base, { ...base, phase: 'merged' as const, checks: [] }, 'important')?.message).toBe('merged, watching the pipelines')
+})
+
+test('isWaitingTooLong: only PRs waiting on review or approval for over 24h', () => {
+  const day = 24 * 60 * 60 * 1000
+  const waiting = watched({ changedAt: 0, checks: [{ name: 'bob', state: 'pending' }] })
+  expect(isWaitingTooLong(waiting, day - 1)).toBe(false)
+  expect(isWaitingTooLong(waiting, day + 1)).toBe(true)
+  expect(isWaitingTooLong({ ...waiting, checks: [{ name: 'build', state: 'fail' }] }, 2 * day)).toBe(false)
+  expect(isWaitingTooLong({ ...waiting, isDone: true }, 2 * day)).toBe(false)
 })
