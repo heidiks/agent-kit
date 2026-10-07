@@ -424,3 +424,78 @@ test('a malformed provider response shows as an error on the row instead of brea
   const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
   expect(await ui.find({ text: '! az: unexpected response' })).toBeDefined()
 })
+
+const SPEC_FILE = `---
+id: PRD-20261007-retry
+title: "Retry with backoff"
+status: In Progress
+phase: implement
+---`
+
+const REVIEW_TASK = `---
+id: TASK-002
+prd_id: PRD-20261007-retry
+title: "Client"
+status: In Review
+prs:
+  - https://dev.azure.com/contoso/Contoso/_git/web-app/pullrequest/123
+---`
+
+const MERGED_PR = { ...PR_SHOW, status: 'completed', closedDate: '2026-01-01T00:00:00Z', lastMergeCommit: { commitId: 'abc' }, description: 'Task: PRD-20261007-retry/TASK-002' }
+
+test('spec tasks: PRs of tasks in review are watched, linked in the TASK column, and mark done asks Claude', async ($, on) => {
+  const clock = mock.clock(on, { now: Date.parse('2026-01-02T00:00:00Z') })
+  mock.store(on)
+  const prompts: string[] = []
+  const files: Record<string, string> = {
+    '/repo/docs/prd/web-app/PRD-20261007-retry/spec.md': SPEC_FILE,
+    '/repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md': REVIEW_TASK,
+  }
+  const entry = (name: string, kind: 'file' | 'dir') => ({ name, kind, size: 0, mtimeMs: 0, isLink: false })
+  on('session.root', () => ({ value: '/repo' }) as never)
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', (_$, e) => ({ value: e.path === '/repo/docs/prd' }) as never)
+  on('fs.list', (_$, e) => {
+    const listing: Record<string, ReturnType<typeof entry>[]> = {
+      '/repo/docs/prd': [entry('web-app', 'dir')],
+      '/repo/docs/prd/web-app': [entry('PRD-20261007-retry', 'dir'), entry('README.md', 'file')],
+      '/repo/docs/prd/web-app/PRD-20261007-retry': [entry('spec.md', 'file'), entry('TASK-002-client.md', 'file')],
+    }
+    return { value: listing[e.path] ?? [] } as never
+  })
+  on('fs.read', (_$, e) => ({ value: files[e.path] ?? '' }) as never)
+  on('process.run', (_$, e) => {
+    const out = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv[0] === 'git') return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    if (e.argv.includes('runs')) return out([{ id: 9, status: 'completed', result: 'succeeded', sourceVersion: 'abc', definition: { name: 'CI' } }])
+    if (e.argv.includes('invoke')) return out({ records: [] })
+    return out(MERGED_PR)
+  })
+  on('prompt.submit', (_$, e) => {
+    prompts.push(e.text)
+    return { text: e.text } as never
+  })
+
+  await $.session.start({ source: 'startup', cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+  const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
+  expect(listed.text).toContain('PR 123 web-app')
+
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await ui.find({ type: 'Text', text: 'TASK' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'TASK-002' })).toBeDefined()
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
+  })
+  expect(await pane.find({ type: 'Text', text: 'PLANS' })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: '0/1 done · In Progress · implement' })).toBeDefined()
+
+  await ui.press({ key: 'done-ado:123' })
+  expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')
+  expect(prompts[0]).toContain('docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md')
+})

@@ -19,6 +19,8 @@ export type GhPr = {
   isDraft: boolean
   mergeable: string
   createdAt?: string
+  body?: string
+  headRefName?: string
   title: string
   url: string
   closedAt: string | null

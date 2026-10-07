@@ -9,6 +9,8 @@ export type PrDetails = {
   isDraft?: boolean
   mergeStatus?: string
   creationDate?: string
+  description?: string
+  sourceRefName?: string
   closedDate?: string
   reviewers?: Reviewer[]
   repository: { name: string; webUrl: string; project: { name: string } }
