@@ -6,7 +6,8 @@ Break the spec into tasks, using [assets/task-template.md](../assets/task-templa
 
 - **Independent**: implementable without an unfinished task, except for dependencies
   declared in `depends_on`.
-- **Small**: finished in one work session and reviewable as one pull request.
+- **Small**: finished in one work session and reviewable as one pull request; each task
+  ships as its own pull request ([pull-requests.md](pull-requests.md)).
 - **Verifiable**: objective acceptance criteria, traceable to the spec's requirements.
 - **Focused**: one concept or layer; do not mix a schema change with business logic.
 
@@ -23,7 +24,8 @@ TASK-005  Integration tests and documentation
 
 ## Steps
 
-1. Create one `TASK-NNN-short-slug.md` per task, numbered from `TASK-001` within the PRD.
+1. Create one `TASK-NNN-short-slug.md` per task, numbered from `TASK-001` within the PRD,
+   with `branch: task/<PRD id>/<TASK id>` (empty in repos without pull requests).
 2. Fill `depends_on` for every task that needs another one first.
 3. Add each task to the PRD frontmatter `tasks:` list and to its Tasks table.
 4. Draw the task graph in the PRD (below). Check it has no cycles.

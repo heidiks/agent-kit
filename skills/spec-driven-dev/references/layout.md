@@ -54,15 +54,17 @@ PRD: `Draft → Approved → In Progress → Completed`, or `Cancelled` from Dra
 | `Completed` | Every task `Done` or `Cancelled` |
 | `Cancelled` | Abandoned |
 
-Task: `Todo → In Progress → Done`, with `Blocked` reachable from and back to `In Progress`, and
-`Cancelled` reachable from any state except `Done`.
+Task: `Todo → In Progress → In Review → Done`, with `Blocked` reachable from and back to
+`In Progress`, and `Cancelled` reachable from any state except `Done`. Tasks without a pull
+request skip `In Review`; changes requested on a pull request move it back to `In Progress`.
 
 | Status | Meaning |
 |---|---|
 | `Todo` | Not started |
 | `In Progress` | Being implemented |
+| `In Review` | Pull request open (`prs` filled), waiting for review and merge |
 | `Blocked` | Waiting on a dependency or decision (`blocked_reason` filled) |
-| `Done` | Implemented and every acceptance criterion verified |
+| `Done` | Every acceptance criterion verified and, when it has one, its pull request merged |
 | `Cancelled` | Dropped, superseded or absorbed by another task (`cancelled_reason` filled) |
 
 Any other value (`WIP`, `done`, `Pending`) is invalid. Transitions follow the arrows.
