@@ -64,6 +64,7 @@ export type WatchedPr = {
   history?: HistoryEntry[]
   sessions?: string[]
   taskRef?: string
+  taskRefs?: string[]
   error?: string
 }
 

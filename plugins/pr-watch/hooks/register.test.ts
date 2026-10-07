@@ -684,3 +684,12 @@ test('clicking the title opens a detail line with the full title, repo and branc
   await ui.press({ key: 'exp-close-ado:124' })
   expect(await ui.find({ type: 'Text', text: longTitle })).toBe(undefined)
 })
+
+test('help lists every command the plugin answers', async ($, on) => {
+  mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const text = (await $.command.run({ command: 'pr-watch', args: 'help' } as never)).text ?? ''
+  for (const usage of ['/pr-watch mine', '/pr-watch rm', '/pr-watch clear-all', '/pr-watch overview', '/pr-watch mode', '/pr-watch style', '/pr-watch hide | show', '/pr-watch help']) {
+    expect(text).toContain(usage)
+  }
+})

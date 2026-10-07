@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { PlanInfo, WatchedPr } from '../types'
-import { activePlans, canMarkDone, fileUrl, parseFrontmatter, parseTaskRef, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
+import { activePlans, canMarkDone, fileUrl, markDonePrompt, parseFrontmatter, parseTaskRef, parseTaskRefs, readyToMarkDone, taskLabel, tasksForPr, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
 
 const TASK_FILE = `---
 id: TASK-002
@@ -64,4 +64,16 @@ test('a PR links to its task by ref or by URL, and only merged green PRs can mar
 test('fileUrl encodes paths and is empty without a file', () => {
   expect(fileUrl('/repo/docs/prd/My PRD/spec.md')).toBe('file:///repo/docs/prd/My%20PRD/spec.md')
   expect(fileUrl('')).toBe('')
+})
+
+test('one PR may cover several tasks: Task lines and branch, label and mark done', () => {
+  expect(parseTaskRefs('a\nTask: PRD-1/TASK-001\nTask: PRD-1/TASK-002\n', 'refs/heads/task/PRD-1/TASK-001')).toEqual(['PRD-1/TASK-001', 'PRD-1/TASK-002'])
+  const task = (id: string, status: string) => ({ ...taskFromFile(TASK_FILE, `docs/${id}.md`, 'PRD-1')!, id, status, prs: [] })
+  const plan: PlanInfo = { id: 'PRD-1', title: 'p', status: 'In Progress', phase: 'implement', path: 'spec.md', file: '', tasks: [task('TASK-001', 'In Review'), task('TASK-002', 'In Review'), task('TASK-003', 'Todo')] }
+  const merged = pr({ phase: 'merged', isDone: true, taskRefs: ['PRD-1/TASK-001', 'PRD-1/TASK-002'], checks: [{ name: 'CI', state: 'ok' }] })
+  expect(tasksForPr(merged, [plan]).map(link => link.task.id)).toEqual(['TASK-001', 'TASK-002'])
+  expect(taskLabel(tasksForPr(merged, [plan]))).toBe('TASK-001+1')
+  const ready = readyToMarkDone(merged, [{ ...plan, tasks: [task('TASK-001', 'In Review'), task('TASK-002', 'Done'), task('TASK-003', 'Todo')] }])
+  expect(ready.map(link => link.task.id)).toEqual(['TASK-001'])
+  expect(markDonePrompt(tasksForPr(merged, [plan]), merged)).toContain('Mark TASK-001 of PRD-1, TASK-002 of PRD-1 as Done')
 })

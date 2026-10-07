@@ -1,7 +1,7 @@
 import type { CheckState, PlanInfo, TaskInfo, WatchedPr } from '../types'
 import { overallState } from './ado'
 
-const TASK_LINE = /^[ \t]*Task:[ \t]*(PRD-[\w.-]+)\/(TASK-\d+)[ \t]*$/im
+const TASK_LINE = /^[ \t]*Task:[ \t]*(PRD-[\w.-]+)\/(TASK-\d+)[ \t]*$/gim
 const TASK_BRANCH = /(?:^|\/)task\/(PRD-[\w.-]+)\/(TASK-\d+)$/i
 const ACTIVE_PLAN_STATUSES = new Set(['Approved', 'In Progress'])
 
@@ -14,13 +14,17 @@ export const TASK_STATES: Record<string, CheckState> = {
   Cancelled: 'skipped',
 }
 
-export function parseTaskRef(body?: string | null, branch?: string | null): string | undefined {
-  const line = TASK_LINE.exec(body ?? '')
-  if (line) {
-    return `${line[1]}/${line[2]}`
-  }
+export type TaskLink = { plan: PlanInfo; task: TaskInfo }
+
+export function parseTaskRefs(body?: string | null, branch?: string | null): string[] {
+  const fromLines = [...(body ?? '').matchAll(TASK_LINE)].map(m => `${m[1]}/${m[2]}`)
   const fromBranch = TASK_BRANCH.exec((branch ?? '').replace(/^refs\/heads\//, ''))
-  return fromBranch ? `${fromBranch[1]}/${fromBranch[2]}` : undefined
+  const refs = [...fromLines, ...(fromBranch ? [`${fromBranch[1]}/${fromBranch[2]}`] : [])]
+  return [...new Set(refs)]
+}
+
+export function parseTaskRef(body?: string | null, branch?: string | null): string | undefined {
+  return parseTaskRefs(body, branch)[0]
 }
 
 function parseValue(raw: string): string | string[] {
@@ -96,20 +100,31 @@ export function normalizeUrl(url: string): string {
   return url.trim().replace(/\/+$/, '').toLowerCase()
 }
 
-export function taskForPr(pr: WatchedPr, plans: PlanInfo[]): { plan: PlanInfo; task: TaskInfo } | undefined {
+export function tasksForPr(pr: WatchedPr, plans: PlanInfo[]): TaskLink[] {
   const url = pr.url ? normalizeUrl(pr.url) : ''
-  for (const plan of plans) {
-    for (const task of plan.tasks) {
-      if (pr.taskRef === `${plan.id}/${task.id}` || (url && task.prs.some(link => normalizeUrl(link) === url))) {
-        return { plan, task }
-      }
-    }
-  }
-  return undefined
+  const refs = pr.taskRefs ?? (pr.taskRef ? [pr.taskRef] : [])
+  return plans.flatMap(plan =>
+    plan.tasks
+      .filter(task => refs.includes(`${plan.id}/${task.id}`) || (url !== '' && task.prs.some(link => normalizeUrl(link) === url)))
+      .map(task => ({ plan, task })),
+  )
+}
+
+export function taskForPr(pr: WatchedPr, plans: PlanInfo[]): TaskLink | undefined {
+  return tasksForPr(pr, plans)[0]
 }
 
 export function prsForTask(plan: PlanInfo, task: TaskInfo, watched: WatchedPr[]): WatchedPr[] {
-  return watched.filter(pr => taskForPr(pr, [{ ...plan, tasks: [task] }]) !== undefined)
+  return watched.filter(pr => tasksForPr(pr, [{ ...plan, tasks: [task] }]).length > 0)
+}
+
+export function readyToMarkDone(pr: WatchedPr, plans: PlanInfo[]): TaskLink[] {
+  return tasksForPr(pr, plans).filter(link => canMarkDone(link.task, pr))
+}
+
+export function taskLabel(links: TaskLink[]): string {
+  if (links.length === 0) return '-'
+  return links.length === 1 ? (links[0]?.task.id ?? '-') : `${links[0]?.task.id}+${links.length - 1}`
 }
 
 export function activePlans(plans: PlanInfo[], watched: WatchedPr[]): PlanInfo[] {
@@ -124,11 +139,13 @@ export function reviewPrUrls(plans: PlanInfo[]): string[] {
   return plans.flatMap(plan => plan.tasks.filter(task => task.status === 'In Review').flatMap(task => task.prs))
 }
 
-export function markDonePrompt(plan: PlanInfo, task: TaskInfo, pr: WatchedPr): string {
+export function markDonePrompt(links: TaskLink[], pr: WatchedPr): string {
+  const names = links.map(link => `${link.task.id} of ${link.plan.id}`).join(', ')
+  const files = links.map(link => link.task.path).join(', ')
   return [
-    `Mark ${task.id} of ${plan.id} as Done following the spec-driven-dev skill.`,
-    `Its pull request ${pr.url} is merged and its post-merge checks passed.`,
-    `Verify each acceptance criterion in ${task.path} first; if one is not met, do not mark it Done and tell me what is missing.`,
-    'Then update the task status, completed_at and progress log, close the PRD if every task is Done or Cancelled, and regenerate the index.',
+    `Mark ${names} as Done following the spec-driven-dev skill.`,
+    `Their pull request ${pr.url} is merged and its post-merge checks passed.`,
+    `Verify each acceptance criterion in ${files} first; for a task whose criteria are not met, do not mark it Done and tell me what is missing.`,
+    'Then update each task status, completed_at and progress log, close the PRD if every task is Done or Cancelled, and regenerate the index.',
   ].join(' ')
 }

@@ -6,6 +6,7 @@ import { ADO_PR_CREATE, adoKey, applyCheck, describe, ICONS, mergeLists, notific
 import { githubKey, parseGithubRef, parseGithubRefs } from './github'
 import { checkPr, currentBranchSeeds, inRepo, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, sessionRepo, type Io, type Seed, type Settings } from './providers'
 import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
+import { helpText } from './help'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
 const TICK_MS = 5_000
@@ -390,8 +391,8 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
       openOverview: () => void openOverview($),
       hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
       cycleStyle: () => void cycleStyle($),
-      markDone: (plan, task, pr) =>
-        void $.prompt.submit({ text: markDonePrompt(plan, task, pr) })
+      markDone: (links, pr) =>
+        void $.prompt.submit({ text: markDonePrompt(links, pr) })
           .catch(() => $.ui.toast('Could not send the mark-done prompt')),
       watchUrl: url => {
         const target = parseTarget(url, settings)
@@ -476,7 +477,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | clear-all | hide | show | style [name]',
+      description: 'Watch Azure DevOps and GitHub PRs: /pr-watch <id|url|owner/repo#N> ... | mine | overview | clear-all | help for every command',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -524,6 +525,9 @@ export const register: Register = (on, options) => {
       const ids = items.filter(item => /^\d+$/.test(item)).map(Number)
       await remove($, pr => !(keys.includes(pr.key) || ids.includes(pr.id)), settings)
       return { text: `Stopped watching ${items.join(', ')}.` }
+    }
+    if (verb === 'help') {
+      return { text: helpText() }
     }
     if (verb === 'mine') {
       const { seeds, errors } = await mySeeds(ioOf($), settings)
