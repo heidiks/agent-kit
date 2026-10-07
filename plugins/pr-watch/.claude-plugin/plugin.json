@@ -55,6 +55,12 @@
         "all"
       ],
       "default": "important"
+    },
+    "tasks": {
+      "type": "boolean",
+      "title": "Spec tasks",
+      "description": "Read docs/prd task files (spec-driven-dev) to link PRs to tasks, show plans in the overview and watch PRs of tasks in review",
+      "default": true
     }
   }
 }

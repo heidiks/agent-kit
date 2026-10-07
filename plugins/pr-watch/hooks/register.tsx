@@ -1,10 +1,11 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
-import type { BandMode, BandStyle, OverviewScope, SummaryStatus, Tone, WatchedPr } from '../types'
+import type { BandMode, BandStyle, OverviewScope, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef } from './github'
 import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, mySeeds, sendNotification, type Io, type Seed, type Settings } from './providers'
+import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
 const TICK_MS = 5_000
@@ -26,6 +27,8 @@ const pendingRemove = atom({ plugin: 'pr-watch', key: 'pendingRemove' } as const
 const CONFIRM_MS = 6_000
 const PARALLEL_CHECKS = 3
 const OVERVIEW = 'pr-watch-overview'
+const PLANS_SCAN_MS = 120_000
+const plans = atom({ plugin: 'pr-watch', key: 'plans' } as const, [] as PlanInfo[])
 const NOTIFY_LEVELS: NotifyLevel[] = ['off', 'important', 'all']
 const SUMMARY_MODEL = 'haiku'
 const doneExpanded = atom({ plugin: 'pr-watch', key: 'doneExpanded' } as const, false)
@@ -54,6 +57,7 @@ function readSettings(options: PluginOptions): Settings {
     details: options.details !== false,
     currentBranch: options.currentBranch !== false,
     maxRows: Math.max(1, Math.floor(Number(options.maxRows ?? 5)) || 5),
+    tasks: options.tasks !== false,
     notify: NOTIFY_LEVELS.includes(options.notify as NotifyLevel) ? (options.notify as NotifyLevel) : 'important',
   }
 }
@@ -234,6 +238,56 @@ async function syncTone($: EngineInterface): Promise<void> {
   await update($, tone, () => toneOf(theme?.value))
 }
 
+async function readPlan($: EngineInterface, dir: string, relative: string): Promise<PlanInfo | undefined> {
+  const entries = await $.fs.list(dir)
+  if (!entries.some(entry => entry.name === 'spec.md')) {
+    return undefined
+  }
+  const name = dir.split('/').pop() ?? ''
+  const tasks: TaskInfo[] = []
+  for (const entry of entries.filter(item => item.kind === 'file' && /^TASK-\d+.*\.md$/.test(item.name)).sort((a, b) => a.name.localeCompare(b.name))) {
+    const task = taskFromFile(await $.fs.read(`${dir}/${entry.name}`), `${relative}/${entry.name}`, name)
+    if (task) {
+      tasks.push(task)
+    }
+  }
+  return planFromSpec(await $.fs.read(`${dir}/spec.md`), `${relative}/spec.md`, tasks)
+}
+
+async function scanPlans($: EngineInterface): Promise<PlanInfo[]> {
+  const root = await $.session.root()
+  const base = `${root}/docs/prd`
+  if (!(await $.fs.exists(base))) {
+    return []
+  }
+  const found: PlanInfo[] = []
+  for (const entry of (await $.fs.list(base)).filter(item => item.kind === 'dir')) {
+    const dir = `${base}/${entry.name}`
+    const relative = `docs/prd/${entry.name}`
+    if (entry.name.startsWith('PRD-')) {
+      const plan = await readPlan($, dir, relative)
+      if (plan) found.push(plan)
+      continue
+    }
+    for (const child of (await $.fs.list(dir)).filter(item => item.kind === 'dir' && item.name.startsWith('PRD-'))) {
+      const plan = await readPlan($, `${dir}/${child.name}`, `${relative}/${child.name}`)
+      if (plan) found.push(plan)
+    }
+  }
+  return found
+}
+
+async function syncPlans($: EngineInterface, settings: Settings): Promise<void> {
+  const scanned = await scanPlans($).catch(() => [] as PlanInfo[])
+  await update($, plans, () => scanned)
+  for (const url of reviewPrUrls(scanned)) {
+    const target = parseTarget(url, settings)
+    if (target) {
+      await watch($, target, settings)
+    }
+  }
+}
+
 async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, list: WatchedPr[], isPane: boolean, settings: Settings): Promise<BandContext> {
   return {
     el,
@@ -247,6 +301,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     limit: isPane ? Number.POSITIVE_INFINITY : settings.maxRows,
     doneExpanded: isPane || (await read($, doneExpanded)),
     isPane,
+    plans: settings.tasks ? await read($, plans) : [],
     actions: {
       remove: key => void update($, pendingRemove, () => '').then(() => remove($, p => p.key !== key, settings)),
       askRemove: key => void askRemove($, key),
@@ -258,6 +313,13 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
       openOverview: () => void openOverview($),
       hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
       cycleStyle: () => void cycleStyle($),
+      markDone: (plan, task, pr) =>
+        void $.prompt.submit({ text: markDonePrompt(plan, task, pr) })
+          .catch(() => $.ui.toast('Could not send the mark-done prompt')),
+      watchUrl: url => {
+        const target = parseTarget(url, settings)
+        if (target) void watch($, target, settings)
+      },
       investigate: (pr, item) =>
         void $.prompt.submit({ text: investigatePrompt(pr, item) })
           .catch(() => $.ui.toast('Could not send the investigation prompt')),
@@ -362,6 +424,10 @@ export const register: Register = (on, options) => {
     await syncTone($)
     $.clock.every(TICK_MS, () => void refresh($, settings))
     $.clock.after(0, () => void refresh($, settings))
+    if (settings.tasks) {
+      $.clock.after(0, () => void syncPlans($, settings))
+      $.clock.every(PLANS_SCAN_MS, () => void syncPlans($, settings))
+    }
     if (settings.currentBranch) {
       $.clock.after(0, () =>
         void currentBranchSeeds(ioOf($), settings).then(async seeds => {

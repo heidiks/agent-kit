@@ -2,7 +2,7 @@
 
 A live band above the Claude Code prompt that follows your pull requests from review to deploy, for Azure DevOps and GitHub.
 
-[Install](#install) · [What it shows](#what-it-shows) · [Usage](#usage) · [Requirements](#requirements) · [Options](#options) · [Privacy](#privacy)
+[Install](#install) · [What it shows](#what-it-shows) · [Usage](#usage) · [Spec tasks](#spec-tasks) · [Requirements](#requirements) · [Options](#options) · [Privacy](#privacy)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/band-dark.svg">
@@ -44,6 +44,17 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 
 The watched list is shared across sessions; finished PRs drop off 24h after they settle.
 
+## Spec tasks
+
+When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task files under `docs/prd/`, pr-watch links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` line in the PR description, the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
+
+- A `TASK` column appears in the table when any watched PR has a task.
+- PRs of tasks `In Review` are watched on session start.
+- The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet.
+- When a task's PR is merged and its post-merge checks pass, `✓ mark done` asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
+
+Without `docs/prd/`, or with the option off, none of this shows up. The skill works without pr-watch too.
+
 ## Requirements
 
 - **Azure DevOps:** [`az`](https://learn.microsoft.com/cli/azure/install-azure-cli) with the `azure-devops` extension and `az devops configure --defaults organization=... project=...`.
@@ -62,6 +73,7 @@ Under `/plugin` > pr-watch > configure:
 | Current branch PR | on | Watch the open PR of the current branch on session start |
 | PRs in the band | 5 | How many PRs the band shows before `+N more` |
 | System notifications | `important` | `off`, `important` or `all` (every state change) |
+| Spec tasks | on | Read `docs/prd` task files to link PRs to tasks |
 
 ## Privacy
 

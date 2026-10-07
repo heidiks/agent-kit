@@ -26,6 +26,19 @@ export type Phase = 'loading' | 'gate' | 'merged' | 'abandoned'
 
 export type Provider = 'ado' | 'github'
 
+export type TaskInfo = {
+  prd: string
+  id: string
+  title: string
+  status: string
+  path: string
+  branch: string
+  prs: string[]
+  dependsOn: string[]
+}
+
+export type PlanInfo = { id: string; title: string; status: string; phase: string; path: string; tasks: TaskInfo[] }
+
 export type WatchedPr = {
   key: string
   provider: Provider
@@ -47,6 +60,7 @@ export type WatchedPr = {
   createdAt?: number
   history?: HistoryEntry[]
   sessions?: string[]
+  taskRef?: string
   error?: string
 }
 
@@ -65,6 +79,7 @@ declare module 'claude-code' {
       tone: Tone
       pendingRemove: string
       doneExpanded: boolean
+      plans: PlanInfo[]
     }
   }
 }

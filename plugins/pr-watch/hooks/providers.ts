@@ -27,6 +27,7 @@ import {
   type GhPr,
   type GhStatus,
 } from './github'
+import { parseTaskRef } from './tasks'
 
 export type Io = {
   run: (argv: string[]) => Promise<{ exitCode: number; stdout: string; stderr: string }>
@@ -41,15 +42,16 @@ export type Settings = {
   currentBranch: boolean
   maxRows: number
   notify: NotifyLevel
+  tasks: boolean
 }
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>
 
-export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt'>
+export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt' | 'taskRef'>
 
 export type Result<T> = { value: T; error?: undefined } | { value?: undefined; error: string }
 
-const GH_PR_FIELDS = 'state,createdAt,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
+const GH_PR_FIELDS = 'state,createdAt,body,headRefName,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
 
 const finishedDetails = new Map<string, BuildDetail>()
 
@@ -114,6 +116,7 @@ async function checkAdo(io: Io, pr: WatchedPr, settings: Settings): Promise<Resu
     url: `${webUrl}/pullrequest/${id}`,
     isDraft: details.isDraft === true,
     createdAt: details.creationDate ? Date.parse(details.creationDate) : undefined,
+    taskRef: parseTaskRef(details.description, details.sourceRefName),
   }
 
   let found: Verdict
@@ -182,6 +185,7 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     url: details.url,
     isDraft: details.isDraft,
     createdAt: details.createdAt ? Date.parse(details.createdAt) : undefined,
+    taskRef: parseTaskRef(details.body, details.headRefName),
   }
 
   let found: Verdict

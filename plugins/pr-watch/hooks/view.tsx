@@ -1,7 +1,8 @@
 import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverProps } from 'claude-code'
 
-import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, SummaryStatus, Tone, WatchedPr } from '../types'
+import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
+import { activePlans, canMarkDone, normalizeUrl, prsForTask, TASK_STATES, taskForPr } from './tasks'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -28,6 +29,8 @@ export type BandActions = {
   hide: () => void
   cycleStyle: () => void
   investigate: (pr: WatchedPr, item: Check) => void
+  markDone: (plan: PlanInfo, task: TaskInfo, pr: WatchedPr) => void
+  watchUrl: (url: string) => void
 }
 
 export type BandContext = {
@@ -42,6 +45,7 @@ export type BandContext = {
   limit: number
   doneExpanded: boolean
   isPane: boolean
+  plans: PlanInfo[]
   actions: BandActions
 }
 
@@ -88,6 +92,8 @@ export function renderBand(ctx: BandContext) {
   const { Box, Button, Link, Text } = ctx.el
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
+  const linked = (pr: WatchedPr) => taskForPr(pr, ctx.plans)
+  const hasTasks = list.some(pr => linked(pr) !== undefined)
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const quiet = isDark ? { dimColor: true } : { color: 'inactive' as Color }
@@ -222,6 +228,19 @@ export function renderBand(ctx: BandContext) {
     </Box>
   )
 
+  const markDoneLine = (pr: WatchedPr, indent: number) => {
+    const link = linked(pr)
+    if (!link || !canMarkDone(link.task, pr)) {
+      return undefined
+    }
+    return (
+      <Box flexDirection="row" gap={1} paddingLeft={indent}>
+        <Text color="success">└ merged and green:</Text>
+        <Button key={`done-${pr.key}`} variant="primary" label={`✓ mark ${link.task.id} done`} onPress={() => actions.markDone(link.plan, link.task, pr)} />
+      </Box>
+    )
+  }
+
   const details = (pr: WatchedPr, indent: number) => [
     ...pr.checks.filter(c => (c.stages?.length ?? 0) > 0).map(c => stageLine(c, indent)),
     ...pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, indent)),
@@ -250,6 +269,7 @@ export function renderBand(ctx: BandContext) {
             {pr.checks.map(c => checkItem(c))}
           </Box>
           {details(pr, 4)}
+          {markDoneLine(pr, 4)}
         </Box>
       )}
     </Box>
@@ -332,13 +352,14 @@ export function renderBand(ctx: BandContext) {
     )
   }
 
-  const COLUMNS = { mark: 2, origin: 4, pr: 8, repo: 16, title: 30, phase: 9, age: 6 }
+  const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 10, repo: 16, title: 30, phase: 9, age: 6 }
 
   const tableHeader = (
     <Box flexDirection="row">
       <Box width={COLUMNS.mark}><Text> </Text></Box>
       <Box width={COLUMNS.origin}><Text color={faint} bold>SRC</Text></Box>
       <Box width={COLUMNS.pr}><Text color={faint} bold>PR</Text></Box>
+      {hasTasks && <Box width={COLUMNS.task}><Text color={faint} bold>TASK</Text></Box>}
       <Box width={COLUMNS.repo}><Text color={faint} bold>REPO</Text></Box>
       <Box width={COLUMNS.title}><Text color={faint} bold>TITLE</Text></Box>
       <Box width={COLUMNS.phase}><Text color={faint} bold>PHASE</Text></Box>
@@ -354,6 +375,11 @@ export function renderBand(ctx: BandContext) {
         <Box width={COLUMNS.mark}>{mark(overallState(pr.checks, pr.phase))}</Box>
         <Box width={COLUMNS.origin}><Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text></Box>
         <Box width={COLUMNS.pr}>{prLink(pr)}</Box>
+        {hasTasks && (
+          <Box width={COLUMNS.task}>
+            <Text color={linked(pr) ? 'suggestion' : faint}>{linked(pr)?.task.id ?? '-'}</Text>
+          </Box>
+        )}
         <Box width={COLUMNS.repo} paddingRight={1}><Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text></Box>
         <Box width={COLUMNS.title} paddingRight={1}><Text wrap="truncate-end" {...quiet}>{pr.title}</Text></Box>
         <Box width={COLUMNS.phase}><Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text></Box>
@@ -371,6 +397,7 @@ export function renderBand(ctx: BandContext) {
       </Box>
       {errorLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
       {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr))}
+      {markDoneLine(pr, COLUMNS.mark + COLUMNS.origin + COLUMNS.pr)}
     </Box>
   )
 
@@ -378,8 +405,12 @@ export function renderBand(ctx: BandContext) {
   const lastChecked = Math.max(0, ...list.map(p => p.checkedAt ?? 0))
   const hasStale = list.some(p => isStale(p, now))
   const ordered = byUrgency(list)
-  const done = ordered.filter(p => p.isDone)
-  const candidates = [...ordered.filter(p => !p.isDone), ...(ctx.doneExpanded ? done : [])]
+  const awaitsMarkDone = (pr: WatchedPr) => {
+    const link = linked(pr)
+    return link !== undefined && canMarkDone(link.task, pr)
+  }
+  const done = ordered.filter(p => p.isDone && !awaitsMarkDone(p))
+  const candidates = [...ordered.filter(p => !p.isDone || awaitsMarkDone(p)), ...(ctx.doneExpanded ? done : [])]
   const rows = candidates.slice(0, ctx.limit)
   const hiddenCount = candidates.length - rows.length
 
@@ -492,6 +523,46 @@ export function renderOverview(ctx: OverviewContext) {
   const stat = (count: number, label: string, state: CheckState) =>
     count > 0 && <Text color={STATE_COLORS[state]}>{`${ICONS[state]} ${count} ${label}`}</Text>
 
+  const plans = activePlans(ctx.plans, ctx.list)
+
+  const planTaskRow = (plan: PlanInfo, task: TaskInfo) => {
+    const state = TASK_STATES[task.status] ?? 'queued'
+    const prs = prsForTask(plan, task, ctx.list)
+    const unwatched = task.prs.filter(url => !prs.some(pr => normalizeUrl(pr.url) === normalizeUrl(url)))
+    const pr = prs[0]
+    return (
+      <Box flexDirection="row" gap={1} paddingLeft={2}>
+        <Text color={STATE_COLORS[state]}>{ICONS[state]}</Text>
+        <Box width={9}><Text>{task.id}</Text></Box>
+        <Box width={12}><Text color={STATE_COLORS[state]}>{task.status || '?'}</Text></Box>
+        <Box width={32}><Text wrap="truncate-end" {...(isDark ? { dimColor: true } : { color: 'inactive' as Color })}>{task.title}</Text></Box>
+        {pr && <Text color={faint}>{`${prLabel(pr)} · ${PHASE_LABELS[pr.phase]}`}</Text>}
+        {pr && canMarkDone(task, pr) && (
+          <Button key={`done-${pr.key}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone(plan, task, pr)} />
+        )}
+        {!pr && unwatched[0] && (
+          <Button key={`watch-${task.prd}-${task.id}`} plain hover={hoverOf(`watch-${task.prd}-${task.id}`)} label="+ watch PR" onPress={() => ctx.actions.watchUrl(unwatched[0] ?? '')} />
+        )}
+        {task.dependsOn.length > 0 && task.status === 'Todo' && <Text color={faint}>{`(after ${task.dependsOn.join(', ')})`}</Text>}
+      </Box>
+    )
+  }
+
+  const planBlock = (plan: PlanInfo) => {
+    const done = plan.tasks.filter(task => task.status === 'Done').length
+    const active = plan.tasks.filter(task => task.status !== 'Cancelled').length
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row" gap={2}>
+          <Text bold>{plan.id}</Text>
+          <Text wrap="truncate-end">{plan.title}</Text>
+          <Text color={faint}>{`${done}/${active} done · ${plan.status}${plan.phase ? ` · ${plan.phase}` : ''}`}</Text>
+        </Box>
+        {plan.tasks.map(task => planTaskRow(plan, task))}
+      </Box>
+    )
+  }
+
   const timelineRow = (pr: WatchedPr) => {
     const steps = (pr.history ?? []).slice(-TIMELINE_STEPS)
     return (
@@ -564,6 +635,12 @@ export function renderOverview(ctx: OverviewContext) {
         <Text color={faint}>No PRs in this scope.</Text>
       ) : (
         renderBand({ ...ctx, mode: 'full', isPane: true, limit: Number.POSITIVE_INFINITY, doneExpanded: true })
+      )}
+      {plans.length > 0 && (
+        <Box flexDirection="column" rowGap={1}>
+          <Text bold color={faint}>PLANS</Text>
+          {plans.map(plan => planBlock(plan))}
+        </Box>
       )}
       {ordered.length > 0 && (
         <Box flexDirection="column">
