@@ -37,6 +37,7 @@ export type Settings = {
   githubHosts: string[]
   details: boolean
   currentBranch: boolean
+  maxRows: number
 }
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>

@@ -37,6 +37,12 @@
       "title": "Current branch PR",
       "description": "On session start, watch the open PR of the current branch",
       "default": true
+    },
+    "maxRows": {
+      "type": "number",
+      "title": "PRs in the band",
+      "description": "How many PRs the band shows before collapsing the rest into a +N more button that opens the full list",
+      "default": 5
     }
   }
 }

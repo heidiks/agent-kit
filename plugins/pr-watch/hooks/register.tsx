@@ -17,6 +17,11 @@ const isCollapsed = atom({ plugin: 'pr-watch', key: 'isCollapsed' } as const, fa
 const isHidden = atom({ plugin: 'pr-watch', key: 'isHidden' } as const, false)
 const style = atom({ plugin: 'pr-watch', key: 'style' } as const, 'table' as BandStyle)
 const tone = atom({ plugin: 'pr-watch', key: 'tone' } as const, 'unknown' as Tone)
+const pendingRemove = atom({ plugin: 'pr-watch', key: 'pendingRemove' } as const, '')
+const CONFIRM_MS = 6_000
+const PARALLEL_CHECKS = 3
+const PANE = 'pr-watch'
+const doneExpanded = atom({ plugin: 'pr-watch', key: 'doneExpanded' } as const, false)
 
 let spinner: Timer | undefined
 let isRefreshing = false
@@ -41,6 +46,7 @@ function readSettings(options: PluginOptions): Settings {
     githubHosts: hosts.length > 0 ? hosts : ['github.com'],
     details: options.details !== false,
     currentBranch: options.currentBranch !== false,
+    maxRows: Math.max(1, Math.floor(Number(options.maxRows ?? 5)) || 5),
   }
 }
 
@@ -98,6 +104,17 @@ async function syncStatus($: EngineInterface, settings: Settings): Promise<void>
   $.ui.status(`PRs ${parts.join(' ')}`)
 }
 
+async function refreshOne($: EngineInterface, pr: WatchedPr, settings: Settings): Promise<void> {
+  const result = await checkPr(ioOf($), pr, settings)
+  const checkedAt = await $.clock.now()
+  const { next, isChanged } = applyCheck(pr, result, checkedAt)
+  if (isChanged) {
+    $.ui.toast(`${heading(next)} · ${describe(next.phase, next.checks)}`, { timeoutMs: 8000 })
+  }
+  nextAt.set(pr.key, checkedAt + pollDelay(next))
+  await update($, prs, list => list.map(p => (p.key === pr.key ? next : p)))
+}
+
 async function refresh($: EngineInterface, settings: Settings): Promise<void> {
   if (isRefreshing) {
     return
@@ -107,15 +124,8 @@ async function refresh($: EngineInterface, settings: Settings): Promise<void> {
     const now = await $.clock.now()
     const due = (await visible($, settings)).filter(p => !p.isDone && (nextAt.get(p.key) ?? 0) <= now)
 
-    for (const pr of due) {
-      const result = await checkPr(ioOf($), pr, settings)
-      const checkedAt = await $.clock.now()
-      const { next, isChanged } = applyCheck(pr, result, checkedAt)
-      if (isChanged) {
-        $.ui.toast(`${heading(next)} · ${describe(next.phase, next.checks)}`, { timeoutMs: 8000 })
-      }
-      nextAt.set(pr.key, checkedAt + pollDelay(next))
-      await update($, prs, list => list.map(p => (p.key === pr.key ? next : p)))
+    for (let start = 0; start < due.length; start += PARALLEL_CHECKS) {
+      await Promise.all(due.slice(start, start + PARALLEL_CHECKS).map(pr => refreshOne($, pr, settings)))
     }
     if (due.length > 0) {
       await save($)
@@ -182,6 +192,11 @@ async function openUrl($: EngineInterface, url: string): Promise<void> {
   $.ui.toast(`Could not open ${url}`)
 }
 
+async function askRemove($: EngineInterface, key: string): Promise<void> {
+  await update($, pendingRemove, () => key)
+  $.clock.after(CONFIRM_MS, () => void update($, pendingRemove, current => (current === key ? '' : current)))
+}
+
 async function setStyle($: EngineInterface, next: BandStyle): Promise<void> {
   await update($, style, () => next)
   await $.store.set(STYLE_KEY, next)
@@ -203,13 +218,44 @@ async function syncTone($: EngineInterface): Promise<void> {
   await update($, tone, () => toneOf(theme?.value))
 }
 
+async function draw($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, isPane: boolean, settings: Settings) {
+  return renderBand({
+    el,
+    list: await visible($, settings),
+    tick: await read($, frame),
+    now: await $.clock.now(),
+    collapsed: await read($, isCollapsed),
+    style: await read($, style),
+    tone: await read($, tone),
+    pendingRemove: await read($, pendingRemove),
+    limit: isPane ? Number.POSITIVE_INFINITY : settings.maxRows,
+    doneExpanded: isPane || (await read($, doneExpanded)),
+    isPane,
+    actions: {
+      remove: key => void update($, pendingRemove, () => '').then(() => remove($, p => p.key !== key, settings)),
+      askRemove: key => void askRemove($, key),
+      cancelRemove: () => void update($, pendingRemove, () => ''),
+      open: url => void openUrl($, url),
+      clearDone: () => void remove($, p => !p.isDone, settings),
+      toggleCollapse: () => void update($, isCollapsed, v => !v),
+      toggleDone: () => void update($, doneExpanded, v => !v),
+      showAll: () => void $.ui.open({ id: PANE, title: 'Pull requests' }).catch(() => $.ui.toast('Could not open the full list')),
+      hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
+      cycleStyle: () => void cycleStyle($),
+      investigate: (pr, item) =>
+        void $.prompt.submit({ text: investigatePrompt(pr, item) })
+          .catch(() => $.ui.toast('Could not send the investigation prompt')),
+    },
+  })
+}
+
 export const register: Register = (on, options) => {
   const settings = readSettings(options)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | rm <target> | clear | hide | show | style [name]',
+      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | rm <target> | all | clear | hide | show | style [name]',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -244,6 +290,10 @@ export const register: Register = (on, options) => {
       const matches = (pr: WatchedPr) => pr.key === target?.key || (/^\d+$/.test(arg) && pr.id === Number(arg))
       await remove($, pr => !matches(pr), settings)
       return { text: `Stopped watching ${arg}.` }
+    }
+    if (verb === 'all') {
+      await $.ui.open({ id: PANE, title: 'Pull requests' })
+      return { text: 'Opened the full list.' }
     }
     if (verb === 'clear') {
       await remove($, p => !p.isDone, settings)
@@ -324,25 +374,15 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
-    return renderBand({
-      el: $.ui.resolve(e),
-      list,
-      tick: await read($, frame),
-      now: await $.clock.now(),
-      collapsed: await read($, isCollapsed),
-      style: await read($, style),
-      tone: await read($, tone),
-      actions: {
-        remove: key => void remove($, p => p.key !== key, settings),
-        open: url => void openUrl($, url),
-        clearDone: () => void remove($, p => !p.isDone, settings),
-        toggleCollapse: () => void update($, isCollapsed, v => !v),
-        hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
-        cycleStyle: () => void cycleStyle($),
-        investigate: (pr, item) =>
-          void $.prompt.submit({ text: investigatePrompt(pr, item) })
-            .catch(() => $.ui.toast('Could not send the investigation prompt')),
-      },
-    })
+    return draw($, $.ui.resolve(e), false, settings)
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    if ((await visible($, settings)).length === 0) {
+      const { Text } = $.ui.resolve(e)
+      return <Text>No PRs being watched.</Text>
+    }
+
+    return draw($, $.ui.resolve(e), true, settings)
   })
 }
