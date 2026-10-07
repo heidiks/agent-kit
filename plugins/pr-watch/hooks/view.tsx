@@ -20,6 +20,7 @@ export function toneOf(theme: unknown): Tone {
 export type BandActions = {
   remove: (key: string) => void
   adopt: (key: string) => void
+  toggleExpand: (key: string) => void
   askRemove: (key: string) => void
   cancelRemove: () => void
   openOverview: () => void
@@ -43,6 +44,7 @@ export type BandContext = {
   style: BandStyle
   tone: Tone
   pendingRemove: string
+  expanded: string
   limit: number
   doneExpanded: boolean
   isPane: boolean
@@ -86,6 +88,13 @@ export function tally(states: CheckState[]): Partial<Record<CheckState, number>>
   }
   return counts
 }
+
+const clip = (value: string, size: number) => (value.length > size ? `${value.slice(0, Math.max(1, size - 1))}…` : value)
+
+const fullRepo = (pr: WatchedPr) =>
+  pr.provider === 'github'
+    ? `${pr.host ?? 'github.com'}/${pr.owner ?? ''}/${pr.repo}`
+    : `${(pr.url.split('/_git/')[0] ?? '').replace(/^https?:\/\/dev\.azure\.com\//, '')}/${pr.repo}`
 
 const prNumber = (pr: WatchedPr) => (pr.provider === 'github' ? `#${pr.id}` : `!${pr.id}`)
 
@@ -361,6 +370,44 @@ export function renderBand(ctx: BandContext) {
     )
   }
 
+  const expandButton = (pr: WatchedPr, part: string, value: string, size: number) =>
+    value === '' ? (
+      <Text> </Text>
+    ) : (
+      <Button
+        key={`exp-${part}-${pr.key}`}
+        plain
+        dimColor={buttonDim}
+        hover={hoverOf(`exp-${pr.key}`)}
+        label={clip(value, size)}
+        onPress={() => actions.toggleExpand(pr.key)}
+      />
+    )
+
+  const detailLine = (pr: WatchedPr, indent: number) => {
+    if (ctx.expanded !== pr.key) {
+      return undefined
+    }
+    const link = linked(pr)
+    const facts = [
+      `repo ${fullRepo(pr)}`,
+      pr.sourceBranch && `${pr.sourceBranch} → ${pr.targetBranch ?? '?'}`,
+      link && `${link.plan.id}/${link.task.id}`,
+      pr.createdAt && `opened ${ago(now - pr.createdAt)} ago`,
+    ].filter(Boolean)
+    return (
+      <Box flexDirection="column" paddingLeft={indent}>
+        <Box flexDirection="row" gap={1}>
+          <Button key={`exp-close-${pr.key}`} plain hover={hoverOf(`exp-${pr.key}`)} label="▾" onPress={() => actions.toggleExpand(pr.key)} />
+          <Text>{pr.title}</Text>
+        </Box>
+        <Box paddingLeft={2}>
+          <Text color={faint}>{facts.join(' · ')}</Text>
+        </Box>
+      </Box>
+    )
+  }
+
   const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 10, repo: 16, title: 30, phase: 9, age: 6, actions: 15 }
   const MIN_CHECKS = 24
   const fixedWidth = 2 + COLUMNS.mark + COLUMNS.origin + COLUMNS.pr + (hasTasks ? COLUMNS.task : 0) + COLUMNS.phase + COLUMNS.age + COLUMNS.actions
@@ -398,8 +445,8 @@ export function renderBand(ctx: BandContext) {
         {cellOf(COLUMNS.origin, <Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text>)}
         {cellOf(COLUMNS.pr, prLink(pr))}
         {hasTasks && cellOf(COLUMNS.task, <Text color={linked(pr) ? 'suggestion' : faint}>{linked(pr)?.task.id ?? '-'}</Text>)}
-        {showRepo && cellOf(COLUMNS.repo, <Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text>, true)}
-        {showTitle && cellOf(COLUMNS.title, <Text wrap="truncate-end" {...quiet}>{pr.title}</Text>, true)}
+        {showRepo && cellOf(COLUMNS.repo, expandButton(pr, 'repo', repoName(pr), COLUMNS.repo - 1), true)}
+        {showTitle && cellOf(COLUMNS.title, expandButton(pr, 'title', pr.title, COLUMNS.title - 1), true)}
         {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
         <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row" columnGap={2} overflow="hidden">
           {pr.checks.map(c => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c)}</Box>)}
@@ -414,6 +461,7 @@ export function renderBand(ctx: BandContext) {
         )}
         {cellOf(COLUMNS.actions, rowActions(pr))}
       </Box>
+      {detailLine(pr, lineIndent)}
       {errorLine(pr, lineIndent)}
       {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, lineIndent))}
       {markDoneLine(pr, lineIndent)}

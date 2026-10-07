@@ -24,6 +24,7 @@ const isHidden = atom({ plugin: 'pr-watch', key: 'isHidden' } as const, false)
 const style = atom({ plugin: 'pr-watch', key: 'style' } as const, 'table' as BandStyle)
 const tone = atom({ plugin: 'pr-watch', key: 'tone' } as const, 'unknown' as Tone)
 const pendingRemove = atom({ plugin: 'pr-watch', key: 'pendingRemove' } as const, '')
+const expanded = atom({ plugin: 'pr-watch', key: 'expanded' } as const, '')
 const CONFIRM_MS = 6_000
 const PARALLEL_CHECKS = 3
 const OVERVIEW = 'pr-watch-overview'
@@ -78,6 +79,10 @@ function parseTarget(text: string, settings: Settings): Seed | undefined {
 
 function heading(pr: WatchedPr): string {
   return [ICONS[overallState(pr.checks, pr.phase)], label(pr), pr.provider === 'ado' ? pr.repo : ''].filter(Boolean).join(' ')
+}
+
+function targetsOf(args: string): string[] {
+  return args.split(/[\s,]+/).map(item => item.trim()).filter(Boolean)
 }
 
 function label(pr: Pick<WatchedPr, 'provider' | 'id' | 'owner' | 'repo'>): string {
@@ -365,6 +370,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     style: await read($, style),
     tone: await read($, tone),
     pendingRemove: await read($, pendingRemove),
+    expanded: await read($, expanded),
     limit: isPane ? Number.POSITIVE_INFINITY : settings.maxRows,
     doneExpanded: isPane || (await read($, doneExpanded)),
     isPane,
@@ -373,6 +379,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     plans: settings.tasks ? await read($, plans) : [],
     actions: {
       adopt: key => void adopt($, key, settings),
+      toggleExpand: key => void update($, expanded, current => (current === key ? '' : key)),
       remove: key => void update($, pendingRemove, () => '').then(() => remove($, p => p.key !== key, settings)),
       askRemove: key => void askRemove($, key),
       cancelRemove: () => void update($, pendingRemove, () => ''),
@@ -512,10 +519,11 @@ export const register: Register = (on, options) => {
     const [verb = '', arg = ''] = e.args.trim().split(/\s+/)
 
     if (verb === 'rm' && arg) {
-      const target = parseTarget(arg, settings)
-      const matches = (pr: WatchedPr) => pr.key === target?.key || (/^\d+$/.test(arg) && pr.id === Number(arg))
-      await remove($, pr => !matches(pr), settings)
-      return { text: `Stopped watching ${arg}.` }
+      const items = targetsOf(e.args.trim().slice(2))
+      const keys = items.map(item => parseTarget(item, settings)?.key).filter(Boolean)
+      const ids = items.filter(item => /^\d+$/.test(item)).map(Number)
+      await remove($, pr => !(keys.includes(pr.key) || ids.includes(pr.id)), settings)
+      return { text: `Stopped watching ${items.join(', ')}.` }
     }
     if (verb === 'mine') {
       const { seeds, errors } = await mySeeds(ioOf($), settings)
@@ -575,11 +583,12 @@ export const register: Register = (on, options) => {
       return { text: `Styles: ${BAND_STYLES.join(', ')}.` }
     }
     if (verb) {
-      const target = parseTarget(verb, settings)
-      if (!target) {
-        return { text: `Could not parse "${verb}". Use an ADO id, a PR URL or owner/repo#N.` }
+      const lines: string[] = []
+      for (const item of targetsOf(e.args)) {
+        const target = parseTarget(item, settings)
+        lines.push(target ? WATCH_ANSWERS[await watch($, target, settings)](label(target)) : `Could not parse "${item}". Use an ADO id, a PR URL or owner/repo#N.`)
       }
-      return { text: WATCH_ANSWERS[await watch($, target, settings)](label(target)) }
+      return { text: lines.join('\n') }
     }
 
     const list = await visible($, settings)
