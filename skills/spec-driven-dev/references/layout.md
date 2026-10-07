@@ -51,10 +51,11 @@ PRD: `Draft → Approved → In Progress → Completed`, or `Cancelled` from Dra
 | `Draft` | Being written or awaiting approval |
 | `Approved` | User approved it; ready to implement |
 | `In Progress` | At least one task started |
-| `Completed` | Every task `Done` |
+| `Completed` | Every task `Done` or `Cancelled` |
 | `Cancelled` | Abandoned |
 
-Task: `Todo → In Progress → Done`, with `Blocked` reachable from and back to `In Progress`.
+Task: `Todo → In Progress → Done`, with `Blocked` reachable from and back to `In Progress`, and
+`Cancelled` reachable from any state except `Done`.
 
 | Status | Meaning |
 |---|---|
@@ -62,8 +63,11 @@ Task: `Todo → In Progress → Done`, with `Blocked` reachable from and back to
 | `In Progress` | Being implemented |
 | `Blocked` | Waiting on a dependency or decision (`blocked_reason` filled) |
 | `Done` | Implemented and every acceptance criterion verified |
+| `Cancelled` | Dropped, superseded or absorbed by another task (`cancelled_reason` filled) |
 
 Any other value (`WIP`, `done`, `Pending`) is invalid. Transitions follow the arrows.
+
+A PRD is `Completed` when every task is `Done` or `Cancelled`, with at least one `Done`.
 
 PRD `phase` (for resuming): `interview`, `spec`, `overview`, `tasks`, `implement`, `done`.
 

@@ -9,6 +9,7 @@ updated_at: YYYY-MM-DD
 started_at: ""
 completed_at: ""
 blocked_reason: ""
+cancelled_reason: ""
 depends_on: []
 ---
 

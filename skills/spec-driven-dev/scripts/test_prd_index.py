@@ -79,7 +79,16 @@ class PrdIndexTest(unittest.TestCase):
         code, _, err = self.run_index()
         self.assertEqual(code, 1)
         self.assertIn("invalid task status 'WIP'", err)
-        self.assertIn("Completed but only 1/2 tasks are Done", err)
+        self.assertIn("Completed but TASK-002 still open", err)
+
+    def test_cancelled_tasks_do_not_block_completion_and_are_shown(self):
+        prd = self.root / "api" / "PRD-20261007-retry"
+        (prd / "TASK-002-client.md").write_text(TASK.format(id="TASK-002", status="Cancelled"))
+        spec = prd / "spec.md"
+        spec.write_text(spec.read_text().replace("status: In Progress", "status: Completed"))
+        code, _, err = self.run_index()
+        self.assertEqual(code, 0, err)
+        self.assertIn("1/1 done (1 cancelled): TASK-001, TASK-002", (prd.parent / "README.md").read_text())
 
     def test_status_lists_phase_and_progress(self):
         code, out, _ = self.run_index("--status")
