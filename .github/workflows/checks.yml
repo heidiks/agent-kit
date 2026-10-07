@@ -1,0 +1,26 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON manifests parse
+        run: |
+          for file in .claude-plugin/marketplace.json plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json; do
+            jq empty "$file" && echo "ok $file"
+          done
+
+  band-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pr-watch band SVGs match render.py
+        run: |
+          python3 plugins/pr-watch/assets/render.py
+          git diff --exit-code plugins/pr-watch/assets/
