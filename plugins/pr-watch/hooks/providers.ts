@@ -266,16 +266,17 @@ export function investigatePrompt(pr: WatchedPr, item: Check): string {
 
 const APPLESCRIPT_NOTIFY = [
   '-e', 'on run argv',
-  '-e', 'display notification (item 2 of argv) with title "pr-watch" subtitle (item 1 of argv) sound name "Glass"',
+  '-e', 'display notification (item 3 of argv) with title (item 1 of argv) subtitle (item 2 of argv) sound name "Glass"',
   '-e', 'end run',
 ]
 
 export async function sendNotification(io: Io, notification: Notification): Promise<boolean> {
-  const { title, message, url } = notification
+  const { title, prTitle, message, url } = notification
+  const heading = `pr-watch · ${title}`
   const attempts = [
-    ['terminal-notifier', '-title', 'pr-watch', '-subtitle', title, '-message', message, '-sound', 'Glass', '-group', title, ...(url.startsWith('https://') ? ['-open', url] : [])],
-    ['osascript', ...APPLESCRIPT_NOTIFY, title, message],
-    ['notify-send', `pr-watch: ${title}`, message],
+    ['terminal-notifier', '-title', heading, '-subtitle', prTitle, '-message', message, '-sound', 'Glass', '-group', title, ...(url.startsWith('https://') ? ['-open', url] : [])],
+    ['osascript', ...APPLESCRIPT_NOTIFY, heading, prTitle, message],
+    ['notify-send', heading, `${prTitle}\n${message}`],
   ]
   for (const argv of attempts) {
     const ran = await io.run(argv).catch(() => undefined)

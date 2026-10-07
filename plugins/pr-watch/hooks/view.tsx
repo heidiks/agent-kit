@@ -332,7 +332,7 @@ export function renderBand(ctx: BandContext) {
     )
   }
 
-  const COLUMNS = { mark: 2, origin: 4, pr: 8, repo: 18, phase: 9, age: 6 }
+  const COLUMNS = { mark: 2, origin: 4, pr: 8, repo: 16, title: 30, phase: 9, age: 6 }
 
   const tableHeader = (
     <Box flexDirection="row">
@@ -340,6 +340,7 @@ export function renderBand(ctx: BandContext) {
       <Box width={COLUMNS.origin}><Text color={faint} bold>SRC</Text></Box>
       <Box width={COLUMNS.pr}><Text color={faint} bold>PR</Text></Box>
       <Box width={COLUMNS.repo}><Text color={faint} bold>REPO</Text></Box>
+      <Box width={COLUMNS.title}><Text color={faint} bold>TITLE</Text></Box>
       <Box width={COLUMNS.phase}><Text color={faint} bold>PHASE</Text></Box>
       <Box flexGrow={1}><Text color={faint} bold>CHECKS</Text></Box>
       <Box width={COLUMNS.age}><Text color={faint} bold>SINCE</Text></Box>
@@ -353,7 +354,8 @@ export function renderBand(ctx: BandContext) {
         <Box width={COLUMNS.mark}>{mark(overallState(pr.checks, pr.phase))}</Box>
         <Box width={COLUMNS.origin}><Text color={faint}>{pr.provider === 'github' ? 'gh' : 'ado'}</Text></Box>
         <Box width={COLUMNS.pr}>{prLink(pr)}</Box>
-        <Box width={COLUMNS.repo}><Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text></Box>
+        <Box width={COLUMNS.repo} paddingRight={1}><Text wrap="truncate-end" color={faint}>{repoName(pr)}</Text></Box>
+        <Box width={COLUMNS.title} paddingRight={1}><Text wrap="truncate-end" {...quiet}>{pr.title}</Text></Box>
         <Box width={COLUMNS.phase}><Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text></Box>
         <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={2} overflow="hidden">
           {pr.checks.map(c => checkItem(collapsed ? { ...c, note: undefined } : c))}
@@ -395,7 +397,9 @@ export function renderBand(ctx: BandContext) {
           <Box flexDirection="row" gap={1} flexShrink={1}>
             {mark(topState)}
             {prLink(top)}
-            <Text color={faint}>{repoName(top)}</Text>
+            <Box flexShrink={2}>
+              <Text wrap="truncate-end" {...quiet}>{top.title || repoName(top)}</Text>
+            </Box>
             <Text wrap="truncate-end" color={STATE_COLORS[attention?.state ?? topState]}>
               {attention ? `${attention.name}${attention.note ? ` (${attention.note})` : ''}` : PHASE_LABELS[top.phase]}
             </Text>
