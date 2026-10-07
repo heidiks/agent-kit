@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { PlanInfo, WatchedPr } from '../types'
-import { activePlans, canMarkDone, parseFrontmatter, parseTaskRef, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
+import { activePlans, canMarkDone, fileUrl, parseFrontmatter, parseTaskRef, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
 
 const TASK_FILE = `---
 id: TASK-002
@@ -35,6 +35,7 @@ test('taskFromFile reads the contract fields, comments and lists', () => {
     title: 'Client with backoff',
     status: 'In Review',
     path: 'docs/prd/api/PRD-20261007-retry/TASK-002-client.md',
+    file: '',
     branch: 'task/PRD-20261007-retry/TASK-002',
     prs: ['https://github.com/acme/api/pull/42'],
     dependsOn: ['TASK-001'],
@@ -58,4 +59,9 @@ test('a PR links to its task by ref or by URL, and only merged green PRs can mar
   const finished = { ...plan, status: 'Completed' }
   expect(activePlans([finished], [])).toEqual([])
   expect(activePlans([finished], [pr({})]).length).toBe(1)
+})
+
+test('fileUrl encodes paths and is empty without a file', () => {
+  expect(fileUrl('/repo/docs/prd/My PRD/spec.md')).toBe('file:///repo/docs/prd/My%20PRD/spec.md')
+  expect(fileUrl('')).toBe('')
 })

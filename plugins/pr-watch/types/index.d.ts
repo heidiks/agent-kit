@@ -32,12 +32,13 @@ export type TaskInfo = {
   title: string
   status: string
   path: string
+  file: string
   branch: string
   prs: string[]
   dependsOn: string[]
 }
 
-export type PlanInfo = { id: string; title: string; status: string; phase: string; path: string; tasks: TaskInfo[] }
+export type PlanInfo = { id: string; title: string; status: string; phase: string; path: string; file: string; tasks: TaskInfo[] }
 
 export type WatchedPr = {
   key: string

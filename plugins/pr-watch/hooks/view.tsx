@@ -2,7 +2,7 @@ import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverPr
 
 import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
-import { activePlans, canMarkDone, normalizeUrl, prsForTask, TASK_STATES, taskForPr } from './tasks'
+import { activePlans, canMarkDone, fileUrl, normalizeUrl, prsForTask, TASK_STATES, taskForPr } from './tasks'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -515,7 +515,7 @@ export type OverviewContext = BandContext & {
 const TIMELINE_STEPS = 6
 
 export function renderOverview(ctx: OverviewContext) {
-  const { Box, Button, Text } = ctx.el
+  const { Box, Button, Link, Text } = ctx.el
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const stats = overviewStats(ctx.list)
@@ -533,6 +533,15 @@ export function renderOverview(ctx: OverviewContext) {
 
   const plans = activePlans(ctx.plans, ctx.list)
 
+  const linkTo = (href: string, label: string, scope: string, bold = false) =>
+    href ? (
+      <Link href={href}>
+        <Text bold={bold} hover={hoverOf(scope)}>{label}</Text>
+      </Link>
+    ) : (
+      <Text bold={bold}>{label}</Text>
+    )
+
   const planTaskRow = (plan: PlanInfo, task: TaskInfo) => {
     const state = TASK_STATES[task.status] ?? 'queued'
     const prs = prsForTask(plan, task, ctx.list)
@@ -541,10 +550,15 @@ export function renderOverview(ctx: OverviewContext) {
     return (
       <Box flexDirection="row" gap={1} paddingLeft={2}>
         <Text color={STATE_COLORS[state]}>{ICONS[state]}</Text>
-        <Box width={9}><Text>{task.id}</Text></Box>
+        <Box width={9}>{linkTo(fileUrl(task.file), task.id, `task-${plan.id}-${task.id}`)}</Box>
         <Box width={12}><Text color={STATE_COLORS[state]}>{task.status || '?'}</Text></Box>
         <Box width={32}><Text wrap="truncate-end" {...(isDark ? { dimColor: true } : { color: 'inactive' as Color })}>{task.title}</Text></Box>
-        {pr && <Text color={faint}>{`${prLabel(pr)} · ${PHASE_LABELS[pr.phase]}`}</Text>}
+        {pr && (
+          <Box flexDirection="row" gap={1}>
+            {linkTo(pr.url, prLabel(pr), `plan-pr-${pr.key}`)}
+            <Text color={faint}>{`· ${PHASE_LABELS[pr.phase]}`}</Text>
+          </Box>
+        )}
         {pr && canMarkDone(task, pr) && (
           <Button key={`done-${pr.key}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone(plan, task, pr)} />
         )}
@@ -562,7 +576,7 @@ export function renderOverview(ctx: OverviewContext) {
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" gap={2}>
-          <Text bold>{plan.id}</Text>
+          {linkTo(fileUrl(plan.file), plan.id, `plan-${plan.id}`, true)}
           <Text wrap="truncate-end">{plan.title}</Text>
           <Text color={faint}>{`${done}/${active} done · ${plan.status}${plan.phase ? ` · ${plan.phase}` : ''}`}</Text>
         </Box>

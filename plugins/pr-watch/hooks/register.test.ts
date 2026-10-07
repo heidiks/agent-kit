@@ -494,6 +494,10 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   })
   expect(await pane.find({ type: 'Text', text: 'PLANS' })).toBeDefined()
   expect(await pane.find({ type: 'Text', text: '0/1 done · In Progress · implement' })).toBeDefined()
+  const hrefs = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href))
+  expect(hrefs).toContain('file:///repo/docs/prd/web-app/PRD-20261007-retry/spec.md')
+  expect(hrefs).toContain('file:///repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md')
+  expect(hrefs.filter(h => h === `${WEB}/pullrequest/123`).length).toBeGreaterThan(1)
 
   await ui.press({ key: 'done-ado:123' })
   expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')
