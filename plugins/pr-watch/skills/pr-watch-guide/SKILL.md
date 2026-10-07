@@ -1,5 +1,6 @@
 ---
-name: pr-watch
+name: pr-watch-guide
+user-invocable: false
 description: >
   How to use the pr-watch plugin (the pull request band above the Claude Code prompt).
   Use when the user asks how to watch a PR, what a /pr-watch command does, what the band,

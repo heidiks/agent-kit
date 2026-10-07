@@ -477,7 +477,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch Azure DevOps and GitHub PRs: /pr-watch <id|url|owner/repo#N> ... | mine | overview | clear-all | help for every command',
+      description: 'Watch Azure DevOps and GitHub PRs (/pr-watch help lists every command)',
+      argumentHint: '[id|url ...] | mine | rm | clear | clear-all | overview | mode | style | hide | show | help',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
