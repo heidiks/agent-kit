@@ -29,7 +29,9 @@ npx skills add heidiks/agent-kit -s <skill> -a claude-code  # one skill, one age
 
 ## Skills
 
-None yet. Each skill will live in `skills/<name>/SKILL.md` and be listed here.
+| Skill | What it does | Works with |
+|---|---|---|
+| [spec-driven-dev](skills/spec-driven-dev/README.md) | Interview, spec, visual overview and tasks before any code, with a checkpoint between phases | Any [Agent Skills](https://agentskills.io) agent |
 
 ## Layout
 
