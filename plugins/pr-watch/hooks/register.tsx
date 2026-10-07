@@ -265,12 +265,12 @@ async function readPlan($: EngineInterface, dir: string, relative: string): Prom
   const name = dir.split('/').pop() ?? ''
   const tasks: TaskInfo[] = []
   for (const entry of entries.filter(item => item.kind === 'file' && /^TASK-\d+.*\.md$/.test(item.name)).sort((a, b) => a.name.localeCompare(b.name))) {
-    const task = taskFromFile(await $.fs.read(`${dir}/${entry.name}`), `${relative}/${entry.name}`, name)
+    const task = taskFromFile(await $.fs.read(`${dir}/${entry.name}`), `${relative}/${entry.name}`, name, `${dir}/${entry.name}`)
     if (task) {
       tasks.push(task)
     }
   }
-  return planFromSpec(await $.fs.read(`${dir}/spec.md`), `${relative}/spec.md`, tasks)
+  return planFromSpec(await $.fs.read(`${dir}/spec.md`), `${relative}/spec.md`, tasks, `${dir}/spec.md`)
 }
 
 async function scanPlans($: EngineInterface): Promise<PlanInfo[]> {

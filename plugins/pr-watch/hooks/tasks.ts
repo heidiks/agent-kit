@@ -60,7 +60,7 @@ export function parseFrontmatter(text: string): Record<string, string | string[]
 const text = (value: string | string[] | undefined) => (Array.isArray(value) ? '' : (value ?? ''))
 const list = (value: string | string[] | undefined) => (Array.isArray(value) ? value : value ? [value] : [])
 
-export function taskFromFile(content: string, path: string, prd: string): TaskInfo | undefined {
+export function taskFromFile(content: string, path: string, prd: string, file = ''): TaskInfo | undefined {
   const data = parseFrontmatter(content)
   const id = text(data.id)
   if (!/^TASK-\d+$/.test(id)) {
@@ -72,19 +72,24 @@ export function taskFromFile(content: string, path: string, prd: string): TaskIn
     title: text(data.title),
     status: text(data.status),
     path,
+    file,
     branch: text(data.branch),
     prs: list(data.prs),
     dependsOn: list(data.depends_on),
   }
 }
 
-export function planFromSpec(content: string, path: string, tasks: TaskInfo[]): PlanInfo | undefined {
+export function planFromSpec(content: string, path: string, tasks: TaskInfo[], file = ''): PlanInfo | undefined {
   const data = parseFrontmatter(content)
   const id = text(data.id)
   if (!id.startsWith('PRD-')) {
     return undefined
   }
-  return { id, title: text(data.title), status: text(data.status), phase: text(data.phase), path, tasks }
+  return { id, title: text(data.title), status: text(data.status), phase: text(data.phase), path, file, tasks }
+}
+
+export function fileUrl(file: string): string {
+  return file ? `file://${encodeURI(file)}` : ''
 }
 
 export function normalizeUrl(url: string): string {
