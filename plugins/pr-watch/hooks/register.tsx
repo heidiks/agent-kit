@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
 import type { BandMode, BandStyle, OverviewScope, SummaryStatus, Tone, WatchedPr } from '../types'
-import { adoKey, applyCheck, describe, ICONS, mergeLists, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt } from './ado'
+import { adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef } from './github'
-import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, type Io, type Seed, type Settings } from './providers'
+import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, sendNotification, type Io, type Seed, type Settings } from './providers'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
 const TICK_MS = 5_000
@@ -26,6 +26,7 @@ const pendingRemove = atom({ plugin: 'pr-watch', key: 'pendingRemove' } as const
 const CONFIRM_MS = 6_000
 const PARALLEL_CHECKS = 3
 const OVERVIEW = 'pr-watch-overview'
+const NOTIFY_LEVELS: NotifyLevel[] = ['off', 'important', 'all']
 const SUMMARY_MODEL = 'haiku'
 const doneExpanded = atom({ plugin: 'pr-watch', key: 'doneExpanded' } as const, false)
 
@@ -53,6 +54,7 @@ function readSettings(options: PluginOptions): Settings {
     details: options.details !== false,
     currentBranch: options.currentBranch !== false,
     maxRows: Math.max(1, Math.floor(Number(options.maxRows ?? 5)) || 5),
+    notify: NOTIFY_LEVELS.includes(options.notify as NotifyLevel) ? (options.notify as NotifyLevel) : 'important',
   }
 }
 
@@ -116,6 +118,10 @@ async function refreshOne($: EngineInterface, pr: WatchedPr, settings: Settings)
   const { next, isChanged } = applyCheck(pr, result, checkedAt)
   if (isChanged) {
     $.ui.toast(`${heading(next)} · ${describe(next.phase, next.checks)}`, { timeoutMs: 8000 })
+  }
+  const notification = notificationFor(pr, next, settings.notify)
+  if (notification) {
+    void sendNotification(ioOf($), notification)
   }
   nextAt.set(pr.key, checkedAt + pollDelay(next))
   await update($, prs, list => list.map(p => (p.key === pr.key ? next : p)))

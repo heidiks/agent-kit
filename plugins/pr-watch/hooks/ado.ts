@@ -361,3 +361,48 @@ export const SUMMARY_SYSTEM = [
   'Use only the data given. Lead with what needs action (failures, pending reviews or approvals), then what shipped.',
   'At most 6 bullet points, no headings, no preamble.',
 ].join(' ')
+
+export type NotifyLevel = 'off' | 'important' | 'all'
+
+export type Notification = { title: string; message: string; url: string }
+
+const failingNames = (pr: WatchedPr) => pr.checks.filter(c => c.state === 'fail').map(c => c.name)
+const awaitingApproval = (pr: WatchedPr) => pr.checks.flatMap(c => [c, ...(c.stages ?? [])]).filter(c => c.note === 'awaiting approval').map(c => c.name)
+const changesRequested = (pr: WatchedPr) => pr.checks.filter(c => c.state === 'warn' && !c.stages && !c.href).map(c => c.name)
+
+function newOnes(after: string[], before: string[]): string[] {
+  return after.filter(name => !before.includes(name))
+}
+
+export function notificationFor(before: WatchedPr, after: WatchedPr, level: NotifyLevel): Notification | undefined {
+  if (level === 'off' || before.phase === 'loading') {
+    return undefined
+  }
+  const title = prLabel(after)
+  const note = (message: string) => ({ title, message, url: after.url })
+
+  const failed = newOnes(failingNames(after), failingNames(before))
+  if (failed.length > 0) {
+    return note(`✗ failed: ${failed.join(', ')}`)
+  }
+  const approvals = newOnes(awaitingApproval(after), awaitingApproval(before))
+  if (approvals.length > 0) {
+    return note(`◐ awaiting approval: ${approvals.join(', ')}`)
+  }
+  const requested = newOnes(changesRequested(after), changesRequested(before))
+  if (requested.length > 0) {
+    return note(`! changes requested by ${requested.join(', ')}`)
+  }
+  if (after.isDone && !before.isDone) {
+    if (after.phase === 'abandoned') return note('– abandoned')
+    return note(after.isFailed ? '✗ finished with failures' : '✓ shipped: every post-merge check passed')
+  }
+  if (after.phase === 'merged' && before.phase !== 'merged') {
+    return note('merged, watching the pipelines')
+  }
+  if (level === 'all' && describe(before.phase, before.checks) !== describe(after.phase, after.checks)) {
+    return note(describe(after.phase, after.checks))
+  }
+
+  return undefined
+}

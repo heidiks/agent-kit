@@ -5,6 +5,7 @@ import {
   ago,
   applyCheck,
   byUrgency,
+  notificationFor,
   describe,
   isStale,
   gateVerdict,
@@ -223,4 +224,27 @@ test('applyCheck: history records only real changes, capped', () => {
     pr = applyCheck(pr, { value: state(i % 2 === 0 ? 'fail' : 'ok') }, 4_000 + i).next
   }
   expect(pr.history?.length).toBe(20)
+})
+
+test('notificationFor: important events only, never the first read', () => {
+  const base = watched({ phase: 'gate', url: 'https://x/pr/1', checks: [{ name: 'build', state: 'running' }] })
+  const failing = { ...base, checks: [{ name: 'build', state: 'fail' as const }] }
+  expect(notificationFor(watched({ phase: 'loading' }), failing, 'important')).toBe(undefined)
+  expect(notificationFor(base, failing, 'important')?.message).toBe('✗ failed: build')
+  expect(notificationFor(base, failing, 'off')).toBe(undefined)
+  expect(notificationFor(failing, failing, 'important')).toBe(undefined)
+
+  const passing = { ...base, checks: [{ name: 'build', state: 'ok' as const }] }
+  expect(notificationFor(base, passing, 'important')).toBe(undefined)
+  expect(notificationFor(base, passing, 'all')?.message).toBe('gate · ✓ build')
+
+  const asked = { ...base, checks: [{ name: 'bob', state: 'warn' as const }] }
+  expect(notificationFor(base, asked, 'important')?.message).toBe('! changes requested by bob')
+
+  const merged = { ...base, phase: 'merged' as const, checks: [{ name: 'CD', state: 'running' as const, href: 'h', stages: [{ name: 'prod', state: 'pending' as const, note: 'awaiting approval' }] }] }
+  expect(notificationFor(base, merged, 'important')?.message).toBe('◐ awaiting approval: prod')
+
+  const shipped = { ...merged, isDone: true, checks: [{ name: 'CD', state: 'ok' as const }] }
+  expect(notificationFor(merged, shipped, 'important')?.message).toBe('✓ shipped: every post-merge check passed')
+  expect(notificationFor(base, { ...base, phase: 'merged' as const, checks: [] }, 'important')?.message).toBe('merged, watching the pipelines')
 })

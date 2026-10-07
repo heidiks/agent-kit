@@ -24,6 +24,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **SINCE:** how long the PR has been in its current state. The header warns when data is stale.
 - **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok). The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
 - **Modes:** `⇕` cycles the band between `full`, `compact` (one row per PR) and `mini` (one line: counts and the most urgent PR).
+- **System notifications:** failures, changes requested, pending approvals, merges and finished deploys show up outside the terminal (macOS via `terminal-notifier` or `osascript`, Linux via `notify-send`). With `terminal-notifier` installed, clicking one opens the PR.
 - **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, an `all` / `this session` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
 - Four layouts (`table`, `tree`, `cards`, `trail`); follows light and dark themes.
 
@@ -59,6 +60,7 @@ Under `/plugin` > pr-watch > configure:
 | Failure details and stages | on | One extra call per build for the timeline or annotations |
 | Current branch PR | on | Watch the open PR of the current branch on session start |
 | PRs in the band | 5 | How many PRs the band shows before `+N more` |
+| System notifications | `important` | `off`, `important` or `all` (every state change) |
 
 ## Privacy
 

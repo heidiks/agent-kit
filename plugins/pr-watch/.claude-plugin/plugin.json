@@ -44,6 +44,17 @@
       "title": "PRs in the band",
       "description": "How many PRs the band shows before collapsing the rest into a +N more button that opens the full list",
       "default": 5
+    },
+    "notify": {
+      "type": "string",
+      "title": "System notifications",
+      "description": "off, important (failures, changes requested, pending approvals, merges, finished deploys) or all (every state change)",
+      "options": [
+        "off",
+        "important",
+        "all"
+      ],
+      "default": "important"
     }
   }
 }
