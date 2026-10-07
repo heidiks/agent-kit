@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
 import type { BandMode, BandStyle, OverviewScope, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
-import { ADO_PR_CREATE, adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, parsePrIds, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
+import { ADO_PR_CREATE, adoKey, applyCheck, combineLists, describe, ICONS, isAbandonedList, mergeLists, notificationFor, overallState, parsePrId, parsePrIds, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef, parseGithubRefs } from './github'
 import { checkPr, currentBranchSeeds, inRepo, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, sessionRepo, type Io, type Seed, type Settings } from './providers'
 import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
@@ -11,7 +11,10 @@ import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tal
 
 const TICK_MS = 5_000
 const SPINNER_MS = 120
-const STORE_KEY = 'prs'
+const LEGACY_KEY = 'prs'
+const SESSION_KEY_PREFIX = 'prs:'
+const OTHERS_SYNC_MS = 30_000
+const others = atom({ plugin: 'pr-watch', key: 'others' } as const, [] as WatchedPr[])
 const STYLE_KEY = 'style'
 const prs = atom({ plugin: 'pr-watch', key: 'prs' } as const, [])
 const frame = atom({ plugin: 'pr-watch', key: 'frame' } as const, 0)
@@ -94,6 +97,48 @@ async function everyEnabled($: EngineInterface, settings: Settings): Promise<Wat
   return (await read($, prs)).filter(p => isEnabled(p, settings))
 }
 
+async function everyKnown($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
+  const mine = await read($, prs)
+  const keys = new Set(mine.map(p => p.key))
+  return [...mine, ...(await read($, others)).filter(p => !keys.has(p.key))].filter(p => isEnabled(p, settings))
+}
+
+async function currentSessionId($: EngineInterface): Promise<string> {
+  const known = await read($, sessionId)
+  if (known) {
+    return known
+  }
+  const id = await $.session.id()
+  await update($, sessionId, () => id)
+  return id
+}
+
+async function syncOthers($: EngineInterface): Promise<void> {
+  const id = await currentSessionId($)
+  const own = `${SESSION_KEY_PREFIX}${id}`
+  const keys = (await $.store.keys()).filter(key => key.startsWith(SESSION_KEY_PREFIX) && key !== own)
+  const legacy = ((await $.store.get(LEGACY_KEY)) as WatchedPr[] | undefined) ?? []
+  const lists: WatchedPr[][] = [
+    legacy
+      .map(p => ({ ...p, sessions: (p.sessions ?? []).filter(s => s !== id) }))
+      .filter(p => p.sessions.length > 0),
+  ]
+  for (const key of keys) {
+    lists.push(((await $.store.get(key)) as WatchedPr[] | undefined) ?? [])
+  }
+  await update($, others, () => combineLists(lists).map(normalize))
+}
+
+async function pruneAbandonedSessions($: EngineInterface): Promise<void> {
+  const now = await $.clock.now()
+  const own = `${SESSION_KEY_PREFIX}${await currentSessionId($)}`
+  for (const key of (await $.store.keys()).filter(key => key === LEGACY_KEY || (key.startsWith(SESSION_KEY_PREFIX) && key !== own))) {
+    if (isAbandonedList(((await $.store.get(key)) as WatchedPr[] | undefined) ?? [], now)) {
+      await $.store.delete(key)
+    }
+  }
+}
+
 function inSession(pr: WatchedPr, session: string): boolean {
   return session === '' || (pr.sessions ?? []).includes(session)
 }
@@ -104,7 +149,7 @@ async function visible($: EngineInterface, settings: Settings): Promise<WatchedP
 }
 
 async function catalog($: EngineInterface, seed: Seed, settings: Settings): Promise<boolean> {
-  if (!isEnabled(seed, settings) || (await read($, prs)).some(p => p.key === seed.key)) {
+  if (!isEnabled(seed, settings) || (await everyKnown($, settings)).some(p => p.key === seed.key)) {
     return false
   }
   const added: WatchedPr = {
@@ -118,13 +163,8 @@ async function catalog($: EngineInterface, seed: Seed, settings: Settings): Prom
 }
 
 async function clearSession($: EngineInterface, settings: Settings): Promise<number> {
-  const session = await read($, sessionId)
   const mine = (await visible($, settings)).map(p => p.key)
-  await update($, prs, list =>
-    list
-      .map(p => (mine.includes(p.key) ? { ...p, sessions: (p.sessions ?? []).filter(s => s !== session) } : p))
-      .filter(p => !mine.includes(p.key) || (p.sessions ?? []).length > 0),
-  )
+  await update($, prs, list => list.filter(p => !mine.includes(p.key)))
   for (const key of mine) nextAt.delete(key)
   await save($)
   await syncSpinner($, settings)
@@ -133,9 +173,12 @@ async function clearSession($: EngineInterface, settings: Settings): Promise<num
 }
 
 async function adopt($: EngineInterface, key: string, settings: Settings): Promise<void> {
-  const session = await read($, sessionId)
+  const session = await currentSessionId($)
+  const elsewhere = (await read($, others)).find(p => p.key === key)
   await update($, prs, list =>
-    list.map(p => (p.key === key && !inSession(p, session) ? { ...p, sessions: [...(p.sessions ?? []), session] } : p)),
+    list.some(p => p.key === key)
+      ? list.map(p => (p.key === key && !inSession(p, session) ? { ...p, sessions: [...(p.sessions ?? []), session] } : p))
+      : elsewhere ? [...list, { ...elsewhere, sessions: [session] }] : list,
   )
   nextAt.set(key, 0)
   await save($)
@@ -143,7 +186,10 @@ async function adopt($: EngineInterface, key: string, settings: Settings): Promi
 }
 
 async function save($: EngineInterface): Promise<void> {
-  await $.store.set(STORE_KEY, await read($, prs))
+  const id = await currentSessionId($)
+  if (id) {
+    await $.store.set(`${SESSION_KEY_PREFIX}${id}`, await read($, prs))
+  }
 }
 
 async function syncSpinner($: EngineInterface, settings: Settings): Promise<void> {
@@ -211,7 +257,7 @@ async function watch($: EngineInterface, seed: Seed, settings: Settings): Promis
   if (!isEnabled(seed, settings)) {
     return 'disabled'
   }
-  const session = await read($, sessionId)
+  const session = await currentSessionId($)
   if ((await read($, prs)).some(p => p.key === seed.key)) {
     await update($, prs, list =>
       list.map(p => (p.key === seed.key && !(p.sessions ?? []).includes(session) ? { ...p, sessions: [...(p.sessions ?? []), session] } : p)),
@@ -420,7 +466,7 @@ async function openOverview($: EngineInterface): Promise<void> {
 }
 
 async function scopedList($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
-  return (await read($, scope)) === 'all' ? everyEnabled($, settings) : visible($, settings)
+  return (await read($, scope)) === 'all' ? everyKnown($, settings) : visible($, settings)
 }
 
 async function summarize($: EngineInterface, settings: Settings): Promise<void> {
@@ -480,10 +526,17 @@ export const register: Register = (on, options) => {
       description: 'Watch Azure DevOps and GitHub PRs (/pr-watch help lists every command)',
       argumentHint: '[id|url ...] | mine | rm | clear | clear-all | overview | mode | style | hide | show | help',
     })
-    const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
+    const id = await $.session.id()
+    await update($, sessionId, () => id)
+    const own = (await $.store.get(`${SESSION_KEY_PREFIX}${id}`)) as WatchedPr[] | undefined
+    const legacy = ((await $.store.get(LEGACY_KEY)) as WatchedPr[] | undefined) ?? []
+    const stored = own ?? legacy.filter(p => (p.sessions ?? []).includes(id))
     const now = await $.clock.now()
     await update($, prs, list => mergeLists(list.map(normalize), stored.map(normalize), now))
     await save($)
+    await syncOthers($)
+    $.clock.every(OTHERS_SYNC_MS, () => void syncOthers($))
+    $.clock.after(0, () => void pruneAbandonedSessions($))
     const storedStyle = String((await $.store.get(STYLE_KEY)) ?? '')
     const savedStyle = LEGACY_STYLES[storedStyle] ?? (storedStyle as BandStyle)
     if (BAND_STYLES.includes(savedStyle)) {
@@ -493,8 +546,6 @@ export const register: Register = (on, options) => {
     if (savedMode && BAND_MODES.includes(savedMode)) {
       await update($, mode, () => savedMode)
     }
-    const id = await $.session.id()
-    await update($, sessionId, () => id)
     await syncTone($)
     $.clock.every(TICK_MS, () => void refresh($, settings))
     $.clock.after(0, () => void refresh($, settings))

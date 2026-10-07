@@ -85,6 +85,7 @@ declare module 'claude-code' {
       expanded: string
       doneExpanded: boolean
       plans: PlanInfo[]
+      others: WatchedPr[]
     }
   }
 }
