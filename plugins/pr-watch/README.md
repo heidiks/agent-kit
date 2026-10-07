@@ -44,7 +44,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 | `/pr-watch hide` / `show` | Hide the band (a summary goes to the status line) or show it again |
 | `/pr-watch help` | This list, inside the session |
 
-Inside a session you can also just ask Claude ("how do I watch a PR?", "why is my PR missing?"): the plugin ships a `pr-watch` skill with this guide.
+Inside a session you can also just ask Claude ("how do I watch a PR?", "why is my PR missing?"): the plugin ships a `pr-watch-guide` skill with this guide (Claude reads it; it is not a slash command, so it never shadows `/pr-watch`).
 
 ### In the band
 
