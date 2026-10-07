@@ -41,7 +41,7 @@ plugins/<name>/                     # one folder per Claude Code plugin, with it
 
 ## Adding something
 
-- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`.
+- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin.
 - **Skill:** create `skills/<name>/SKILL.md` and add it to [Skills](#skills).
 
 ## License

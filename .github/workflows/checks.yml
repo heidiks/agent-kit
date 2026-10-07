@@ -6,15 +6,25 @@ on:
     branches: [main]
 
 jobs:
-  manifests:
+  plugins:
     runs-on: ubuntu-latest
+    env:
+      CLAUDE_CODE_VERSION: 2.1.292
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
     steps:
       - uses: actions/checkout@v4
-      - name: JSON manifests parse
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      - name: Validate marketplace and plugins
         run: |
-          for file in .claude-plugin/marketplace.json plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json; do
-            jq empty "$file" && echo "ok $file"
-          done
+          claude plugin validate .
+          for dir in plugins/*/; do claude plugin validate "$dir"; done
+      - name: Test plugins
+        run: |
+          for dir in plugins/*/; do claude plugin test "$dir"; done
 
   band-image:
     runs-on: ubuntu-latest
