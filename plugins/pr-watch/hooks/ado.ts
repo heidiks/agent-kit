@@ -8,6 +8,7 @@ export type PrDetails = {
   targetRefName: string
   isDraft?: boolean
   mergeStatus?: string
+  creationDate?: string
   closedDate?: string
   reviewers?: Reviewer[]
   repository: { name: string; webUrl: string; project: { name: string } }
@@ -301,7 +302,7 @@ export function byUrgency(list: WatchedPr[]): WatchedPr[] {
   const rank = (pr: WatchedPr) => (pr.isDone ? 10 : 0) + URGENCY[overallState(pr.checks, pr.phase)]
   return list
     .map((pr, index) => ({ pr, index }))
-    .sort((a, b) => rank(a.pr) - rank(b.pr) || a.index - b.index)
+    .sort((a, b) => rank(a.pr) - rank(b.pr) || (b.pr.createdAt ?? 0) - (a.pr.createdAt ?? 0) || a.index - b.index)
     .map(entry => entry.pr)
 }
 

@@ -4,7 +4,7 @@ import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-cod
 import type { BandMode, BandStyle, OverviewScope, SummaryStatus, Tone, WatchedPr } from '../types'
 import { adoKey, applyCheck, describe, ICONS, mergeLists, notificationFor, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef } from './github'
-import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, sendNotification, type Io, type Seed, type Settings } from './providers'
+import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, mySeeds, sendNotification, type Io, type Seed, type Settings } from './providers'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
 const TICK_MS = 5_000
@@ -113,7 +113,7 @@ async function syncStatus($: EngineInterface, settings: Settings): Promise<void>
 }
 
 async function refreshOne($: EngineInterface, pr: WatchedPr, settings: Settings): Promise<void> {
-  const result = await checkPr(ioOf($), pr, settings)
+  const result = await checkPr(ioOf($), pr, settings).catch(() => ({ error: 'unexpected response' }))
   const checkedAt = await $.clock.now()
   const { next, isChanged } = applyCheck(pr, result, checkedAt)
   if (isChanged) {
@@ -342,7 +342,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | rm <target> | overview | mode [full|compact|mini] | clear | hide | show | style [name]',
+      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | hide | show | style [name]',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -383,6 +383,17 @@ export const register: Register = (on, options) => {
       const matches = (pr: WatchedPr) => pr.key === target?.key || (/^\d+$/.test(arg) && pr.id === Number(arg))
       await remove($, pr => !matches(pr), settings)
       return { text: `Stopped watching ${arg}.` }
+    }
+    if (verb === 'mine') {
+      const { seeds, errors } = await mySeeds(ioOf($), settings)
+      let added = 0
+      for (const seed of seeds) {
+        if ((await watch($, seed, settings)) === 'added') {
+          added += 1
+        }
+      }
+      const summary = seeds.length === 0 ? 'No open PRs of yours found.' : `Watching ${seeds.length} of your open PRs (${added} new).`
+      return { text: [summary, ...errors.map(error => `! ${error}`)].join('\n') }
     }
     if (verb === 'all' || verb === 'overview') {
       await openOverview($)

@@ -387,3 +387,40 @@ test('a state change after the first read sends a system notification', async ($
   expect(notified.length).toBe(2)
   expect(notified[1]?.slice(-3)).toEqual(['pr-watch · web-app !123', 'feat: x', '✗ failed: build'])
 })
+
+test('mine imports your open PRs from both providers and reports provider errors', { options: { githubHosts: 'github.com, github.example.com' } }, async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const calls: string[][] = []
+  on('process.run', (_$, e) => {
+    calls.push([...e.argv])
+    const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv.includes('account')) return ok('alice@contoso.com')
+    if (e.argv.includes('policy')) return ok([])
+    if (e.argv.includes('list') && e.argv[0] === 'az') return ok([{ pullRequestId: 11, repository: { name: 'web-app' } }, { pullRequestId: 12, repository: { name: 'api' } }])
+    if (e.argv[0] === 'env') return { value: { exitCode: 1, stdout: '', stderr: 'HTTP 401: Bad credentials\n', isStdoutTruncated: false, isStderrTruncated: false } }
+    if (e.argv.includes('search')) return ok([{ number: 300, repository: { nameWithOwner: 'octo-org/website' } }])
+    return ok(PR_SHOW)
+  })
+
+  await $.command.run({ command: 'pr-watch', args: '11' } as never)
+  const answer = await $.command.run({ command: 'pr-watch', args: 'mine' } as never)
+  expect(answer.text).toBe('Watching 3 of your open PRs (2 new).\n! gh (github.example.com): HTTP 401: Bad credentials')
+  expect(calls.find(c => c[0] === 'az' && c.includes('list'))).toContain('alice@contoso.com')
+  expect(calls.find(c => c[0] === 'env')?.[1]).toBe('GH_HOST=github.example.com')
+  await clock.advance(1)
+  const listed = await $.command.run({ command: 'pr-watch', args: '' } as never)
+  expect(listed.text).toContain('octo-org/website#300')
+})
+
+test('a malformed provider response shows as an error on the row instead of breaking the refresh', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('process.run', (_$, e) => ({
+    value: { exitCode: 0, stdout: JSON.stringify(e.argv.includes('policy') ? [{ nope: true }] : PR_SHOW), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
+  await $.command.run({ command: 'pr-watch', args: '123' } as never)
+  await clock.advance(1)
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await ui.find({ text: '! az: unexpected response' })).toBeDefined()
+})

@@ -44,6 +44,7 @@ export type WatchedPr = {
   doneAt?: number
   checkedAt?: number
   changedAt?: number
+  createdAt?: number
   history?: HistoryEntry[]
   sessions?: string[]
   error?: string
