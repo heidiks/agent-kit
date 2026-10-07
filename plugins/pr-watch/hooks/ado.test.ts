@@ -210,6 +210,16 @@ test('byUrgency: failing first, then waiting, running, ok, finished last; stable
   expect(byUrgency(list).map(p => p.id)).toEqual([5, 4, 2, 1, 6, 3])
 })
 
+test('byUrgency: within the same state the newest PR comes first, across repos', () => {
+  const list = [
+    watched({ id: 300, key: 'gh:a#300', createdAt: 1_000, checks: [{ name: 'build', state: 'ok' }] }),
+    watched({ id: 7, key: 'gh:b#7', createdAt: 5_000, checks: [{ name: 'build', state: 'ok' }] }),
+    watched({ id: 19690, key: 'ado:19690', createdAt: 3_000, checks: [{ name: 'build', state: 'ok' }] }),
+    watched({ id: 1, key: 'ado:1', createdAt: 100, checks: [{ name: 'build', state: 'fail' }] }),
+  ]
+  expect(byUrgency(list).map(p => p.id)).toEqual([1, 7, 19690, 300])
+})
+
 test('applyCheck: history records only real changes, capped', () => {
   const state = (s: 'fail' | 'ok') => ({ phase: 'gate' as const, checks: [{ name: 'build', state: s }], isFailed: s === 'fail', isDone: false })
   let pr = watched({ phase: 'loading' })

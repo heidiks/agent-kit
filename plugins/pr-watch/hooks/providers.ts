@@ -45,11 +45,11 @@ export type Settings = {
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>
 
-export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft'>
+export type Checked = Verdict & Pick<WatchedPr, 'repo' | 'project' | 'title' | 'url' | 'isDraft' | 'createdAt'>
 
 export type Result<T> = { value: T; error?: undefined } | { value?: undefined; error: string }
 
-const GH_PR_FIELDS = 'state,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
+const GH_PR_FIELDS = 'state,createdAt,isDraft,mergeable,title,url,closedAt,mergeCommit,reviewDecision,latestReviews,reviewRequests,statusCheckRollup'
 
 const finishedDetails = new Map<string, BuildDetail>()
 
@@ -113,6 +113,7 @@ async function checkAdo(io: Io, pr: WatchedPr, settings: Settings): Promise<Resu
     title: details.title,
     url: `${webUrl}/pullrequest/${id}`,
     isDraft: details.isDraft === true,
+    createdAt: details.creationDate ? Date.parse(details.creationDate) : undefined,
   }
 
   let found: Verdict
@@ -174,7 +175,14 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     return { error: shown.error }
   }
   const details = shown.value
-  const base = { repo: pr.repo, project: pr.owner ?? '', title: details.title, url: details.url, isDraft: details.isDraft }
+  const base = {
+    repo: pr.repo,
+    project: pr.owner ?? '',
+    title: details.title,
+    url: details.url,
+    isDraft: details.isDraft,
+    createdAt: details.createdAt ? Date.parse(details.createdAt) : undefined,
+  }
 
   let found: Verdict
   if (details.state === 'CLOSED') {
@@ -286,4 +294,48 @@ export async function sendNotification(io: Io, notification: Notification): Prom
   }
 
   return false
+}
+
+const MINE_LIMIT = 30
+
+export type MineResult = { seeds: Seed[]; errors: string[] }
+
+export async function mySeeds(io: Io, settings: Settings): Promise<MineResult> {
+  const seeds: Seed[] = []
+  const errors: string[] = []
+
+  if (settings.ado) {
+    const account = await az<string>(io, ['account', 'show', '--query', 'user.name'])
+    const found = account.value
+      ? await az<{ pullRequestId: number; repository: { name: string } }[]>(io, [
+          'repos', 'pr', 'list', '--creator', account.value, '--status', 'active', '--top', String(MINE_LIMIT),
+        ])
+      : { error: account.error ?? 'no signed-in user' }
+    if (found.value) {
+      seeds.push(...found.value.map(pr => ({ key: adoKey(pr.pullRequestId), provider: 'ado' as const, id: pr.pullRequestId, repo: pr.repository.name })))
+    } else {
+      errors.push(`az: ${found.error}`)
+    }
+  }
+
+  if (settings.github) {
+    for (const host of settings.githubHosts) {
+      const search = ['gh', 'search', 'prs', '--author', '@me', '--state', 'open', '--json', 'number,repository', '--limit', String(MINE_LIMIT)]
+      const found = await runJson<{ number: number; repository: { nameWithOwner: string } }[]>(
+        io,
+        host === 'github.com' ? search : ['env', `GH_HOST=${host}`, ...search],
+      )
+      if (!found.value) {
+        errors.push(`gh (${host}): ${found.error}`)
+        continue
+      }
+      for (const pr of found.value) {
+        const [owner = '', repo = ''] = pr.repository.nameWithOwner.split('/')
+        const ref = { host, owner, repo, number: pr.number }
+        seeds.push({ key: githubKey(ref), provider: 'github', id: pr.number, host, owner, repo })
+      }
+    }
+  }
+
+  return { seeds, errors }
 }
