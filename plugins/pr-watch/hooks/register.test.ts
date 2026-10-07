@@ -205,3 +205,24 @@ for (const theme of ['light', 'dark-daltonized'] as const) {
     expect(hide?.text).toBe('⊖ hide')
   })
 }
+
+test('open button sends the PR URL to the system opener', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const opened: string[][] = []
+  on('process.run', (_$, e) => {
+    if (e.argv[0] === 'open') {
+      opened.push([...e.argv])
+      return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
+    return { value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+
+  await $.command.run({ command: 'pr-watch', args: '123' } as never)
+  await clock.advance(1)
+
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect((await ui.find({ key: 'open-ado:123' }))?.text).toBe('↗')
+  await ui.press({ key: 'open-ado:123' })
+  expect(opened).toEqual([['open', `${WEB}/pullrequest/123`]])
+})

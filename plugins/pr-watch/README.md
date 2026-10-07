@@ -20,6 +20,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Gate:** build validation and checks, reviewers and their votes, merge conflicts, drafts.
 - **After merge:** the pipelines and checks of the merge commit, with stages and pending approvals. A run that "succeeded" while a stage approval was never granted is flagged instead of shown green.
 - **Failures:** the failing task or annotation inline, plus an `investigate` button that asks Claude to read the log and propose a fix (nothing is applied).
+- **Row actions:** `↗` opens the PR in the browser, `×` stops watching it.
 - **SINCE:** how long the PR has been in its current state. The header warns when data is stale.
 - Four layouts (`table`, `tree`, `cards`, `trail`); follows light and dark themes.
 

@@ -167,6 +167,21 @@ function normalize(pr: WatchedPr): WatchedPr {
   }
 }
 
+const OPENERS = [['open'], ['xdg-open'], ['cmd', '/c', 'start', '""']]
+
+async function openUrl($: EngineInterface, url: string): Promise<void> {
+  if (!/^https:\/\//.test(url)) {
+    return
+  }
+  for (const opener of OPENERS) {
+    const ran = await $.process.run([...opener, url], { timeoutMs: 10_000 }).catch(() => undefined)
+    if (ran?.exitCode === 0) {
+      return
+    }
+  }
+  $.ui.toast(`Could not open ${url}`)
+}
+
 async function setStyle($: EngineInterface, next: BandStyle): Promise<void> {
   await update($, style, () => next)
   await $.store.set(STYLE_KEY, next)
@@ -319,6 +334,7 @@ export const register: Register = (on, options) => {
       tone: await read($, tone),
       actions: {
         remove: key => void remove($, p => p.key !== key, settings),
+        open: url => void openUrl($, url),
         clearDone: () => void remove($, p => !p.isDone, settings),
         toggleCollapse: () => void update($, isCollapsed, v => !v),
         hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
