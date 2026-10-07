@@ -1,0 +1,16 @@
+{
+  "name": "agent-kit",
+  "owner": {
+    "name": "heidiks"
+  },
+  "metadata": {
+    "description": "Skills, plugins and Claude Code mods by heidiks"
+  },
+  "plugins": [
+    {
+      "name": "pr-watch",
+      "source": "./plugins/pr-watch",
+      "description": "Live band above the Claude Code prompt that tracks Azure DevOps and GitHub pull requests from gate to deploy"
+    }
+  ]
+}

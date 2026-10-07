@@ -1,0 +1,42 @@
+{
+  "name": "pr-watch",
+  "version": "0.3.0",
+  "description": "Watches gate, reviews and post-merge pipelines of Azure DevOps and GitHub pull requests",
+  "author": {
+    "name": "heidiks"
+  },
+  "homepage": "https://github.com/heidiks/agent-kit",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "ado": {
+      "type": "boolean",
+      "title": "Azure DevOps",
+      "description": "Watch Azure DevOps pull requests (az CLI)",
+      "default": true
+    },
+    "github": {
+      "type": "boolean",
+      "title": "GitHub",
+      "description": "Watch GitHub pull requests (gh CLI)",
+      "default": true
+    },
+    "githubHosts": {
+      "type": "string",
+      "title": "GitHub hosts",
+      "description": "Comma-separated hosts to accept; add your GitHub Enterprise host (gh must be logged in there)",
+      "default": "github.com"
+    },
+    "details": {
+      "type": "boolean",
+      "title": "Failure details and stages",
+      "description": "Fetch the build timeline (ADO) and check annotations (GitHub); one extra call per build",
+      "default": true
+    },
+    "currentBranch": {
+      "type": "boolean",
+      "title": "Current branch PR",
+      "description": "On session start, watch the open PR of the current branch",
+      "default": true
+    }
+  }
+}
