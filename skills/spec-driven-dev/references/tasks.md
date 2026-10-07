@@ -7,7 +7,7 @@ Break the spec into tasks, using [assets/task-template.md](../assets/task-templa
 - **Independent**: implementable without an unfinished task, except for dependencies
   declared in `depends_on`.
 - **Small**: finished in one work session and reviewable as one pull request; each task
-  ships as its own pull request ([pull-requests.md](pull-requests.md)).
+  ships as its own pull request unless it is grouped with related ones ([pull-requests.md](pull-requests.md)).
 - **Verifiable**: objective acceptance criteria, traceable to the spec's requirements.
 - **Focused**: one concept or layer; do not mix a schema change with business logic.
 
