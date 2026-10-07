@@ -1,6 +1,6 @@
 {
   "name": "pr-watch",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Watches gate, reviews and post-merge pipelines of Azure DevOps and GitHub pull requests",
   "author": {
     "name": "heidiks"

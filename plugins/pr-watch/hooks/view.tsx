@@ -408,7 +408,7 @@ export function renderBand(ctx: BandContext) {
     )
   }
 
-  const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 10, repo: 16, title: 30, phase: 9, age: 6, actions: 15 }
+  const COLUMNS = { mark: 2, origin: 4, pr: 8, task: 12, repo: 16, title: 30, phase: 9, age: 6, actions: 15 }
   const MIN_CHECKS = 24
   const fixedWidth = 2 + COLUMNS.mark + COLUMNS.origin + COLUMNS.pr + (hasTasks ? COLUMNS.task : 0) + COLUMNS.phase + COLUMNS.age + COLUMNS.actions
   const showRepo = ctx.width >= fixedWidth + COLUMNS.repo + MIN_CHECKS

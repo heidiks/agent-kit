@@ -6,6 +6,7 @@ import {
   applyCheck,
   byUrgency,
   parsePrIds,
+  isAbandonedList,
   isWaitingTooLong,
   notificationFor,
   describe,
@@ -275,4 +276,14 @@ test('parsePrIds: tsv ids from az pr create, JSON and URLs, never stray numbers'
   expect(parsePrIds('19758\n19759\n', create)).toEqual([19758, 19759])
   expect(parsePrIds('{ "pullRequestId": 7, "url": "x" }\nhttps://dev.azure.com/o/p/_git/r/pullrequest/8')).toEqual([7, 8])
   expect(parsePrIds('19758\n', 'git log --oneline | wc -l')).toEqual([])
+})
+
+test('isAbandonedList: only lists whose PRs were all last seen over 14 days ago', () => {
+  const day = 24 * 60 * 60 * 1000
+  const now = 30 * day
+  const seen = (fields: Partial<WatchedPr>) => ({ key: 'ado:1', provider: 'ado', id: 1, title: '', url: '', phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, ...fields }) as WatchedPr
+  expect(isAbandonedList([seen({ checkedAt: now - 15 * day })], now)).toBe(true)
+  expect(isAbandonedList([seen({ checkedAt: now - 15 * day }), seen({ checkedAt: now - day })], now)).toBe(false)
+  expect(isAbandonedList([seen({})], now)).toBe(false)
+  expect(isAbandonedList([seen({ createdAt: now - 15 * day })], now)).toBe(true)
 })

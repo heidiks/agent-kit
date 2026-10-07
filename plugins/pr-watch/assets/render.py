@@ -28,20 +28,31 @@ def row(*cells):
         out += c
     return out
 
+TASK = 12
+TITLE = 22
+CHECKS = 34
+
+def pr_row(mark, src, pr, task, repo, title, phase, checks, age, actions):
+    return row(cell(mark, 3), cell(src, 4), cell(pr, 8), cell(task, TASK), cell(repo, 16), cell(title, TITLE), cell(phase, 9),
+               cell(checks, CHECKS), cell(age, 6), actions)
+
+OPEN = [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]
+
 LINES = [
     right([(' Pull requests', 'claude', 'b'), ('  ', 'text'), ('✗ 1', 'error'), ('  ', 'text'), ('⠹ 1', 'suggestion'), ('  ', 'text'), ('◐ 1', 'warning'), ('  ', 'text'), ('✓ 1', 'success'), ('  ', 'text'), ('updated 12s ago', 'faint')],
           [('▤ table', 'dim'), ('  ', 'text'), ('⇕ full', 'dim'), ('  ', 'text'), ('⊞ overview', 'dim'), ('  ', 'text'), ('⊖ hide', 'dim'), (' ', 'text')]),
-    row(cell([('', 'text')], 3), cell([('SRC', 'faint', 'b')], 4), cell([('PR', 'faint', 'b')], 8), cell([('REPO', 'faint', 'b')], 16), cell([('TITLE', 'faint', 'b')], 30), cell([('PHASE', 'faint', 'b')], 9),
-        cell([('CHECKS', 'faint', 'b')], 38), cell([('SINCE', 'faint', 'b')], 6)),
-    row(cell([(' ✗', 'error')], 3), cell([('ado', 'faint')], 4), cell([('!4242', 'link', 'bu')], 8), cell([('web-app', 'faint')], 16), cell([('feat(billing): pix reconcil…', 'faint')], 30), cell([('gate', 'suggestion')], 9),
-        cell([('✗ ', 'error'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('Code-Reviewers', 'text')], 38), cell([('40m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
+    pr_row([('', 'text')], [('SRC', 'faint', 'b')], [('PR', 'faint', 'b')], [('TASK', 'faint', 'b')], [('REPO', 'faint', 'b')], [('TITLE', 'faint', 'b')],
+           [('PHASE', 'faint', 'b')], [('CHECKS', 'faint', 'b')], [('SINCE', 'faint', 'b')], []),
+    pr_row([(' ✗', 'error')], [('ado', 'faint')], [('!4242', 'link', 'bu')], [('TASK-002', 'suggestion')], [('web-app', 'faint')], [('feat(billing): pix …', 'faint')],
+           [('gate', 'suggestion')], [('✗ ', 'error'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('Code-Reviewers', 'text')], [('40m', 'faint')], OPEN),
     row(cell([('', 'text')], 15), cell([('└ Run Lint: Bash exited with code \'2\'.', 'error')], 42), [('⌕ investigate', 'dim')]),
-    row(cell([(' ⠹', 'suggestion')], 3), cell([('gh', 'faint')], 4), cell([('#300', 'link', 'bu')], 8), cell([('octo-org/webs…', 'faint')], 16), cell([('docs: new pricing page', 'faint')], 30), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('test', 'link', 'u'), ('  ', 'text'), ('⠹ ', 'suggestion'), ('deploy', 'link', 'u')], 38), cell([('3m', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
-    row(cell([(' ◐', 'warning')], 3), cell([('gh', 'faint')], 4), cell([('#298', 'link', 'bu')], 8), cell([('octo-org/webs…', 'faint')], 16), cell([('fix: checkout redirect loop', 'faint')], 30), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('prod', 'link', 'u'), (' (awaiting approval)', 'warning')], 38), cell([('2h', 'faint')], 6), [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]),
-    row(cell([(' ✓', 'success')], 3), cell([('ado', 'faint')], 4), cell([('!4199', 'link', 'bu')], 8), cell([('api', 'faint')], 16), cell([('chore: bump go to 1.27', 'faint')], 30), cell([('merged', 'merged')], 9),
-        cell([('✓ ', 'success'), ('CI', 'link', 'u'), ('  ', 'text'), ('✓ ', 'success'), ('CD', 'link', 'u')], 38), cell([('1d', 'faint')], 6), [('remove? ', 'error'), ('yes', 'text'), (' ', 'text'), ('no', 'text')]),
+    pr_row([(' ⠹', 'suggestion')], [('gh', 'faint')], [('#300', 'link', 'bu')], [('-', 'faint')], [('octo-org/webs…', 'faint')], [('docs: new pricing p…', 'faint')],
+           [('merged', 'merged')], [('✓ ', 'success'), ('test', 'link', 'u'), ('  ', 'text'), ('⠹ ', 'suggestion'), ('deploy', 'link', 'u')], [('3m', 'faint')], OPEN),
+    pr_row([(' ◐', 'warning')], [('gh', 'faint')], [('#298', 'link', 'bu')], [('-', 'faint')], [('octo-org/webs…', 'faint')], [('fix: checkout redir…', 'faint')],
+           [('merged', 'merged')], [('✓ ', 'success'), ('build', 'link', 'u'), ('  ', 'text'), ('◐ ', 'warning'), ('prod', 'link', 'u'), (' (approval)', 'warning')], [('2h', 'faint')], OPEN),
+    pr_row([(' ✓', 'success')], [('ado', 'faint')], [('!4199', 'link', 'bu')], [('TASK-001+1', 'suggestion')], [('api', 'faint')], [('feat(billing): pix …', 'faint')],
+           [('merged', 'merged')], [('✓ ', 'success'), ('CI', 'link', 'u'), ('  ', 'text'), ('✓ ', 'success'), ('CD', 'link', 'u')], [('1d', 'faint')], [('remove? ', 'error'), ('yes', 'text'), (' ', 'text'), ('no', 'text')]),
+    row(cell([('', 'text')], 15), [('└ merged and green: ', 'success'), ('[ ✓ mark TASK-001, TASK-003 done ]', 'claude')]),
 ]
 
 CW, LH, FS = 8.4, 21, 14

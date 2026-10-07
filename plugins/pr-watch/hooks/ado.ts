@@ -362,7 +362,7 @@ export function combineLists(lists: WatchedPr[][]): WatchedPr[] {
 }
 
 export function isAbandonedList(list: WatchedPr[], now: number): boolean {
-  return list.every(pr => now - (pr.checkedAt ?? 0) > STALE_SESSION_LIST_MS)
+  return list.every(pr => now - (pr.checkedAt ?? pr.changedAt ?? pr.createdAt ?? now) > STALE_SESSION_LIST_MS)
 }
 
 export type OverviewStats = { total: number; merged: number; failing: number; waiting: number; running: number; finished: number }
