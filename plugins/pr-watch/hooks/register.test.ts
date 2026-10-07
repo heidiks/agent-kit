@@ -600,3 +600,31 @@ for (const [width, repo, title] of [[80, false, false], [100, true, false], [140
     expect(await ui.find({ type: 'Text', text: 'CHECKS' })).toBeDefined()
   })
 }
+
+test('clear-all drops this session PRs but keeps the ones another session also watches', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  const pr = (id: number, sessions: string[]) => ({
+    key: `ado:${id}`, provider: 'ado', id, repo: 'web-app', project: 'Contoso', title: 't', url: `${WEB}/pullrequest/${id}`,
+    phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, sessions,
+  })
+  mock.store(on, { prs: [pr(1, ['session-a']), pr(2, ['session-a', 'session-b']), pr(3, ['session-b'])] })
+  on('process.run', (_$, e) => ({ value: { exitCode: e.argv[0] === 'git' ? 1 : 0, stdout: e.argv.includes('policy') ? '[]' : JSON.stringify(PR_SHOW), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', () => ({ value: false }) as never)
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+  expect((await $.command.run({ command: 'pr-watch', args: 'clear-all' } as never)).text).toBe('Stopped watching 2 PR(s) in this session.')
+  expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toBe('No PRs being watched.')
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
+  })
+  await pane.press({ key: 'scope-all' })
+  const ids = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h)).map(h => h.split('/').pop())
+  expect([...new Set(ids)].sort()).toEqual(['2', '3'])
+})

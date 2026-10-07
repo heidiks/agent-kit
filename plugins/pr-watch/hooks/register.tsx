@@ -97,6 +97,21 @@ async function visible($: EngineInterface, settings: Settings): Promise<WatchedP
   return (await everyEnabled($, settings)).filter(p => inSession(p, session))
 }
 
+async function clearSession($: EngineInterface, settings: Settings): Promise<number> {
+  const session = await read($, sessionId)
+  const mine = (await visible($, settings)).map(p => p.key)
+  await update($, prs, list =>
+    list
+      .map(p => (mine.includes(p.key) ? { ...p, sessions: (p.sessions ?? []).filter(s => s !== session) } : p))
+      .filter(p => !mine.includes(p.key) || (p.sessions ?? []).length > 0),
+  )
+  for (const key of mine) nextAt.delete(key)
+  await save($)
+  await syncSpinner($, settings)
+  await syncStatus($, settings)
+  return mine.length
+}
+
 async function adopt($: EngineInterface, key: string, settings: Settings): Promise<void> {
   const session = await read($, sessionId)
   await update($, prs, list =>
@@ -440,7 +455,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | hide | show | style [name]',
+      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | mine | rm <target> | overview | mode [full|compact|mini] | clear | clear-all | hide | show | style [name]',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -511,6 +526,10 @@ export const register: Register = (on, options) => {
         await cycleMode($)
       }
       return { text: `Band mode: ${await read($, mode)}.` }
+    }
+    if (verb === 'clear-all') {
+      const cleared = await clearSession($, settings)
+      return { text: cleared === 0 ? 'No PRs in this session.' : `Stopped watching ${cleared} PR(s) in this session.` }
     }
     if (verb === 'clear') {
       await remove($, p => !p.isDone, settings)

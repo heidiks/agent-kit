@@ -39,7 +39,9 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 /pr-watch mine                                  # all of your open PRs on Azure DevOps and GitHub
 /pr-watch overview                              # popup with every PR, timeline and summary
 /pr-watch mode [full|compact|mini]
-/pr-watch rm <target> | clear | hide | show | style [table|tree|cards|trail]
+/pr-watch clear                                 # drop finished PRs
+/pr-watch clear-all                             # drop every PR of this session (kept for other sessions that watch it)
+/pr-watch rm <target> | hide | show | style [table|tree|cards|trail]
 ```
 
 Each session watches its own PRs: the ones created, detected or added in it. Only those show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session, and its PRs. The list itself is saved across sessions: the overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
