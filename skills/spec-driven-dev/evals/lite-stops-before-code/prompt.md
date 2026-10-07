@@ -1,0 +1,1 @@
+Spec out, in lite mode, a small change: add a `Timeout time.Duration` field to `Client` in src/client.go and apply it to the underlying http.Client when it is set. This is precise enough; skip the interview and the diagrams.

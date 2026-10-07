@@ -2,3 +2,5 @@
 node_modules/
 plugins/*/tsconfig.json
 plugins/*/.claude-plugin/types/
+skills/*/evals/results/
+plugins/*/evals/results/
