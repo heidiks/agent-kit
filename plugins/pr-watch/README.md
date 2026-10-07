@@ -36,7 +36,7 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 /pr-watch 4242                                  # Azure DevOps PR id
 /pr-watch https://github.com/owner/repo/pull/7  # any PR URL
 /pr-watch owner/repo#7
-/pr-watch mine                                  # all of your open PRs on Azure DevOps and GitHub
+/pr-watch mine                                  # your open PRs: the session repo's go to the band, the rest to the overview's all filter
 /pr-watch overview                              # popup with every PR, timeline and summary
 /pr-watch mode [full|compact|mini]
 /pr-watch clear                                 # drop finished PRs
