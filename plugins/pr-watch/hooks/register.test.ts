@@ -353,3 +353,34 @@ test('overview: scope filter by session, timeline and a haiku summary on demand'
   expect(prompts[0]).not.toContain('web-app !1')
   expect(await pane.find({ type: 'Text', text: '- PR 1 build is failing' })).toBeDefined()
 })
+
+test('a state change after the first read sends a system notification', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const notified: string[][] = []
+  let buildStatus = 'running'
+  on('process.run', (_$, e) => {
+    if (e.argv[0] === 'osascript' || e.argv[0] === 'terminal-notifier') {
+      notified.push([...e.argv])
+      return { value: { exitCode: e.argv[0] === 'osascript' ? 0 : 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
+    const stdout = e.argv.includes('policy')
+      ? JSON.stringify([{ status: buildStatus, context: { buildId: 7 }, configuration: { isBlocking: true, type: { displayName: 'Build' } } }])
+      : e.argv[0] === 'az' && e.argv.includes('show') ? JSON.stringify(PR_SHOW) : e.argv.includes('invoke') ? JSON.stringify(TIMELINE) : ''
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'pr-watch', args: '123' } as never)
+  await clock.advance(1)
+  expect(notified).toEqual([])
+
+  buildStatus = 'rejected'
+  await clock.advance(16_000)
+  expect(notified.length).toBe(2)
+  expect(notified[1]?.slice(-2)).toEqual(['web-app !123', '✗ failed: build'])
+})

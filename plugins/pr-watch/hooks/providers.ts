@@ -8,6 +8,8 @@ import {
   repoFromRemote,
   withDetail,
   type BuildDetail,
+  type Notification,
+  type NotifyLevel,
   type PipelineRun,
   type PolicyEvaluation,
   type PrDetails,
@@ -38,6 +40,7 @@ export type Settings = {
   details: boolean
   currentBranch: boolean
   maxRows: number
+  notify: NotifyLevel
 }
 
 export type Seed = Pick<WatchedPr, 'key' | 'provider' | 'id' | 'host' | 'owner' | 'repo'>
@@ -259,4 +262,27 @@ export function investigatePrompt(pr: WatchedPr, item: Check): string {
     reason,
     'Read the log of the failed task (az CLI or the azure-devops MCP), identify the root cause and propose a fix without applying it.',
   ].filter(Boolean).join(' ')
+}
+
+const APPLESCRIPT_NOTIFY = [
+  '-e', 'on run argv',
+  '-e', 'display notification (item 2 of argv) with title "pr-watch" subtitle (item 1 of argv) sound name "Glass"',
+  '-e', 'end run',
+]
+
+export async function sendNotification(io: Io, notification: Notification): Promise<boolean> {
+  const { title, message, url } = notification
+  const attempts = [
+    ['terminal-notifier', '-title', 'pr-watch', '-subtitle', title, '-message', message, '-sound', 'Glass', '-group', title, ...(url.startsWith('https://') ? ['-open', url] : [])],
+    ['osascript', ...APPLESCRIPT_NOTIFY, title, message],
+    ['notify-send', `pr-watch: ${title}`, message],
+  ]
+  for (const argv of attempts) {
+    const ran = await io.run(argv).catch(() => undefined)
+    if (ran?.exitCode === 0) {
+      return true
+    }
+  }
+
+  return false
 }
