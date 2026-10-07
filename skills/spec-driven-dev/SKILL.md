@@ -39,8 +39,8 @@ PRD frontmatter (`mode: full` or `mode: lite`).
 | 2 | Spec | `spec.md` filled from the interview | [references/spec.md](references/spec.md) |
 | 3 | Visual overview | Mermaid diagrams in `spec.md` | [references/visual-overview.md](references/visual-overview.md) |
 | 4 | Tasks | `TASK-NNN-*.md` files and the task graph | [references/tasks.md](references/tasks.md) |
-| 5 | Implement | Code, one task at a time | [references/implement.md](references/implement.md) |
-| 6 | Done | Tasks `Done`, PRD `Completed`, index updated | [references/implement.md](references/implement.md) |
+| 5 | Implement | Code, one task at a time, one pull request per task | [references/implement.md](references/implement.md), [references/pull-requests.md](references/pull-requests.md) |
+| 6 | Done | Tasks `Done` once merged, PRD `Completed`, index updated | [references/implement.md](references/implement.md) |
 
 Read a phase's reference file only when that phase starts. Layout, IDs, statuses and
 the index are in [references/layout.md](references/layout.md); read it before creating
@@ -64,7 +64,9 @@ plain text.
 
 1. List PRDs under `docs/prd/` with their `status` and `phase` (run
    `scripts/prd_index.py --status` from the repo root, or read the frontmatter).
-2. For the PRD in question, report the current phase, the tasks by status, and the
+2. For tasks `In Review`, check whether their pull requests were merged
+   ([references/pull-requests.md](references/pull-requests.md)) before reporting.
+3. For the PRD in question, report the current phase, the tasks by status, and the
    next step, then offer the checkpoint options above.
 
 ## Rules that always apply
@@ -74,3 +76,4 @@ plain text.
 - Record each decision with its alternatives and rationale in the PRD's Decisions table.
 - After any status change, regenerate the index with `scripts/prd_index.py`.
 - Match the codebase: read two or three existing files before writing code or tasks.
+- One task, one branch, one pull request, linked both ways (`prs` and the `Task:` line).

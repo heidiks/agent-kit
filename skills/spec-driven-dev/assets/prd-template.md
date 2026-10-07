@@ -93,9 +93,9 @@ flowchart LR
 
 ## Tasks
 
-| Task | Title | Status |
-|---|---|---|
-| [TASK-001](./TASK-001-slug.md) | Task title | Todo |
+| Task | Title | Status | Pull request |
+|---|---|---|---|
+| [TASK-001](./TASK-001-slug.md) | Task title | Todo | - |
 
 ```mermaid
 flowchart LR

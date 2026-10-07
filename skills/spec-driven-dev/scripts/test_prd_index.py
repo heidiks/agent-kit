@@ -90,6 +90,18 @@ class PrdIndexTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("1/1 done (1 cancelled): TASK-001, TASK-002", (prd.parent / "README.md").read_text())
 
+    def test_in_review_needs_a_pull_request_and_is_counted(self):
+        task = self.root / "api" / "PRD-20261007-retry" / "TASK-002-client.md"
+        task.write_text(TASK.format(id="TASK-002", status="In Review"))
+        code, _, err = self.run_index()
+        self.assertEqual(code, 1)
+        self.assertIn("In Review without a pull request in prs", err)
+
+        task.write_text(task.read_text().replace("depends_on: []", "depends_on: []\nprs:\n  - https://github.com/acme/api/pull/42"))
+        code, _, err = self.run_index()
+        self.assertEqual(code, 0, err)
+        self.assertIn("1/2 done (1 in review): TASK-001, TASK-002", (task.parent.parent / "README.md").read_text())
+
     def test_status_lists_phase_and_progress(self):
         code, out, _ = self.run_index("--status")
         self.assertEqual(code, 0)

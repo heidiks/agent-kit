@@ -25,6 +25,8 @@ Then ask the agent to "spec out" or "plan" a feature, or "where did we stop on P
 
 Each phase ends with a checkpoint: continue, revise, skip the next phase, or stop. **Lite mode** skips the interview and the visual overview for small, precise requests.
 
+Each task ships as its own pull request on a `task/<PRD>/<TASK>` branch, linked both ways: the task lists the PR in `prs`, the PR description carries `Task: <PRD>/<TASK>`. The task stays `In Review` until the PR is merged. The contract is in [references/pull-requests.md](references/pull-requests.md); tools such as the `pr-watch` plugin can read it, none is required.
+
 ## Files it writes
 
 ```

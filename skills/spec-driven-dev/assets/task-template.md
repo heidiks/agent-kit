@@ -11,6 +11,8 @@ completed_at: ""
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: []
+branch: task/PRD-YYYYMMDD-slug/TASK-NNN  # empty in repos without pull requests
+prs: []
 ---
 
 # TASK-NNN — Short Task Title
