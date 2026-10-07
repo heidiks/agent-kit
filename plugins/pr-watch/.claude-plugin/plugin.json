@@ -6,6 +6,7 @@
     "name": "heidiks"
   },
   "homepage": "https://github.com/heidiks/agent-kit",
+  "license": "MIT",
   "types": "./types/index.d.ts",
   "userConfig": {
     "ado": {
