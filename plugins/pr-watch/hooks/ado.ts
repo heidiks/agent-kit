@@ -348,6 +348,23 @@ export function mergeLists(current: WatchedPr[], stored: WatchedPr[], now: numbe
   )
 }
 
+export const STALE_SESSION_LIST_MS = 14 * 24 * 60 * 60 * 1000
+
+export function combineLists(lists: WatchedPr[][]): WatchedPr[] {
+  const byKey = new Map<string, WatchedPr>()
+  for (const pr of lists.flat()) {
+    const known = byKey.get(pr.key)
+    if (!known || (pr.checkedAt ?? 0) > (known.checkedAt ?? 0)) {
+      byKey.set(pr.key, pr)
+    }
+  }
+  return [...byKey.values()]
+}
+
+export function isAbandonedList(list: WatchedPr[], now: number): boolean {
+  return list.every(pr => now - (pr.checkedAt ?? 0) > STALE_SESSION_LIST_MS)
+}
+
 export type OverviewStats = { total: number; merged: number; failing: number; waiting: number; running: number; finished: number }
 
 export function overviewStats(list: WatchedPr[]): OverviewStats {

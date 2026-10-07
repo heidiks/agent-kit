@@ -34,6 +34,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`ADO PR created with az shows in the band with reason and investigate button (${surface})`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 })
     mock.store(on)
+    on('session.id', () => ({ value: 'session-a' }) as never)
     const prompts: string[] = []
     on('process.run', (_$, e) => ({
       value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -79,6 +80,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 test('az errors show on the PR row', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => ({
     value: e.argv[0] === 'az'
       ? { exitCode: 1, stdout: '', stderr: 'ERROR: token expired\n', isStdoutTruncated: false, isStderrTruncated: false }
@@ -96,6 +98,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`all four styles render and the button cycles them (${surface})`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 })
     mock.store(on)
+    on('session.id', () => ({ value: 'session-a' }) as never)
     on('process.run', (_$, e) => ({
       value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     }))
@@ -145,6 +148,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`GitHub PR created with gh shows with # and gh source (${surface})`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 })
     mock.store(on)
+    on('session.id', () => ({ value: 'session-a' }) as never)
     const prompts: string[] = []
     on('process.run', (_$, e) => ({
       value: { exitCode: 0, stdout: e.argv[0] === 'gh' ? ghAnswer(e.argv) : answer(e.argv).stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -177,6 +181,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 test('github flag off refuses GitHub PRs', { options: { github: false } }, async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   const answer = await $.command.run({ command: 'pr-watch', args: 'octo-org/website#300' } as never)
   expect(answer.text).toBe('octo-org/website#300: this integration is disabled in the plugin options.')
 })
@@ -184,6 +189,7 @@ test('github flag off refuses GitHub PRs', { options: { github: false } }, async
 test('GHE host listed in options is accepted', { options: { githubHosts: 'github.com, github.example.com' } }, async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: 'HTTP 401', isStdoutTruncated: false, isStderrTruncated: false } }))
   const answer = await $.command.run({ command: 'pr-watch', args: 'https://github.example.com/time/api/pull/7' } as never)
   expect(answer.text).toBe('Watching time/api#7.')
@@ -193,6 +199,7 @@ for (const theme of ['light', 'dark-daltonized'] as const) {
   test(`theme ${theme} picks readable muted text`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 })
     mock.store(on)
+    on('session.id', () => ({ value: 'session-a' }) as never)
     on('process.run', (_$, e) => ({
       value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     }))
@@ -221,6 +228,7 @@ for (const theme of ['light', 'dark-daltonized'] as const) {
 test('open button sends the PR URL to the system opener', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   const opened: string[][] = []
   on('process.run', (_$, e) => {
     if (e.argv[0] === 'open') {
@@ -242,6 +250,7 @@ test('open button sends the PR URL to the system opener', async ($, on) => {
 test('remove confirmation expires after a few seconds', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => ({ value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
 
   await $.command.run({ command: 'pr-watch', args: '123' } as never)
@@ -266,6 +275,7 @@ function manyAnswer(argv: readonly string[]): string {
 test('long lists: band shows maxRows, groups finished PRs and opens the rest in a pane', { options: { maxRows: 3 } }, async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   const opened: string[] = []
   on('process.run', (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -302,6 +312,7 @@ test('long lists: band shows maxRows, groups finished PRs and opens the rest in 
 test('mini mode: one line with counts and the most urgent PR', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))
@@ -322,7 +333,12 @@ test('mini mode: one line with counts and the most urgent PR', async ($, on) => 
 
 test('overview: scope filter by session, timeline and a haiku summary on demand', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
-  mock.store(on)
+  mock.store(on, {
+    'prs:session-b': [{
+      key: 'ado:1', provider: 'ado', id: 1, repo: 'web-app', project: 'Contoso', title: 't', url: `${WEB}/pullrequest/1`,
+      phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, sessions: ['session-b'], checkedAt: 1_000_000,
+    }],
+  })
   const prompts: string[] = []
   on('process.run', (_$, e) => ({
     value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -336,7 +352,6 @@ test('overview: scope filter by session, timeline and a haiku summary on demand'
     return { value: { isAnswered: true, text: '- PR 1 build is failing', usage: {} } } as never
   })
 
-  await $.command.run({ command: 'pr-watch', args: '1' } as never)
   await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
   await $.command.run({ command: 'pr-watch', args: '2' } as never)
   await clock.advance(1)
@@ -426,6 +441,7 @@ test('mine watches your PRs from the session repo and catalogs the rest for the 
 test('a malformed provider response shows as an error on the row instead of breaking the refresh', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => ({
     value: { exitCode: 0, stdout: JSON.stringify(e.argv.includes('policy') ? [{ nope: true }] : PR_SHOW), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))
@@ -553,6 +569,7 @@ test('session scope: another session PRs stay out of the band and polling until 
 test('az pr create with -o tsv watches every created PR, across repos', async ($, on) => {
   const clock = mock.clock(on, { now: Date.parse('2026-10-07T17:38:00Z') })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => {
     const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     if (e.argv.includes('account')) return ok('alice@contoso.com')
@@ -573,6 +590,7 @@ test('a PR create whose output names no id is found by asking Azure DevOps for P
   const now = Date.parse('2026-10-07T17:38:00Z')
   const clock = mock.clock(on, { now })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => {
     const ok = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     if (e.argv.includes('account')) return ok('alice@contoso.com')
@@ -598,6 +616,7 @@ for (const [width, repo, title] of [[80, false, false], [100, true, false], [140
   test(`table fits ${width} columns: REPO ${repo ? 'shown' : 'hidden'}, TITLE ${title ? 'shown' : 'hidden'}`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 })
     mock.store(on)
+    on('session.id', () => ({ value: 'session-a' }) as never)
     on('process.run', (_$, e) => ({
       value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     }))
@@ -641,6 +660,7 @@ test('clear-all drops this session PRs but keeps the ones another session also w
 test('several PRs at once, separated by spaces or commas, each reported', async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   on('process.run', (_$, e) => ({ value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   const added = await $.command.run({ command: 'pr-watch', args: '101 102,103  octo-org/website#7, nope' } as never)
   expect(added.text).toBe([
@@ -660,6 +680,7 @@ test('several PRs at once, separated by spaces or commas, each reported', async 
 test('clicking the title opens a detail line with the full title, repo and branches; one at a time', async ($, on) => {
   const clock = mock.clock(on, { now: Date.parse('2026-10-07T12:00:00Z') })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   const longTitle = 'feat(auth-gatekeeper): login only through the identity provider configured for the tenant'
   on('process.run', (_$, e) => {
     const show = { ...PR_SHOW, title: longTitle, creationDate: '2026-10-07T10:00:00Z', sourceRefName: 'refs/heads/agk-parameter', targetRefName: 'refs/heads/master' }
@@ -688,8 +709,108 @@ test('clicking the title opens a detail line with the full title, repo and branc
 test('help lists every command the plugin answers', async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
   const text = (await $.command.run({ command: 'pr-watch', args: 'help' } as never)).text ?? ''
   for (const usage of ['/pr-watch mine', '/pr-watch rm', '/pr-watch clear-all', '/pr-watch overview', '/pr-watch mode', '/pr-watch style', '/pr-watch hide | show', '/pr-watch help']) {
     expect(text).toContain(usage)
   }
+})
+
+type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
+
+function memoryStore(on: On, seed: Record<string, unknown>): Map<string, unknown> {
+  const data = new Map(Object.entries(seed))
+  on('store.get' as never, ((_$: unknown, e: { key: string }) => ({ value: data.get(e.key) })) as never)
+  on('store.set' as never, ((_$: unknown, e: { key: string; value: unknown }) => {
+    data.set(e.key, e.value)
+    return { value: undefined }
+  }) as never)
+  on('store.keys' as never, (() => ({ value: [...data.keys()] })) as never)
+  on('store.delete' as never, ((_$: unknown, e: { key: string }) => {
+    data.delete(e.key)
+    return { value: undefined }
+  }) as never)
+  return data
+}
+
+const stored = (id: number, sessions: string[], checkedAt: number) => ({
+  key: `ado:${id}`, provider: 'ado', id, repo: 'web-app', project: 'Contoso', title: 't', url: `${WEB}/pullrequest/${id}`,
+  phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, sessions, checkedAt,
+})
+
+function startedSession(on: On, id: string): void {
+  on('process.run', (_$, e) => ({ value: { exitCode: e.argv[0] === 'git' ? 1 : 0, stdout: e.argv.includes('policy') ? '[]' : JSON.stringify(PR_SHOW), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('session.id', () => ({ value: id }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', () => ({ value: false }) as never)
+}
+
+const DAY = 24 * 60 * 60 * 1000
+
+test('each session saves under its own key and never overwrites another session list', async ($, on) => {
+  const clock = mock.clock(on, { now: 30 * DAY })
+  const data = memoryStore(on, { 'prs:session-b': [stored(9, ['session-b'], 30 * DAY)] })
+  startedSession(on, 'session-a')
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'pr-watch', args: '5' } as never)
+  await clock.advance(1)
+
+  expect((data.get('prs:session-a') as { id: number }[]).map(p => p.id)).toEqual([5])
+  expect((data.get('prs:session-b') as { id: number }[]).map(p => p.id)).toEqual([9])
+  const listed = (await $.command.run({ command: 'pr-watch', args: '' } as never)).text ?? ''
+  expect(listed).toContain('PR 5')
+  expect(listed).not.toContain('PR 9')
+})
+
+test('a PR watched before session.start still belongs to the session', async ($, on) => {
+  const clock = mock.clock(on, { now: 30 * DAY })
+  const data = memoryStore(on, {})
+  startedSession(on, 'session-a')
+
+  await $.command.run({ command: 'pr-watch', args: '5' } as never)
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+
+  expect((data.get('prs:session-a') as { sessions: string[] }[])[0]?.sessions).toEqual(['session-a'])
+  expect((await $.command.run({ command: 'pr-watch', args: '' } as never)).text).toContain('PR 5')
+})
+
+test('the old shared list migrates per session and old session lists are pruned', async ($, on) => {
+  const clock = mock.clock(on, { now: 30 * DAY })
+  const data = memoryStore(on, {
+    prs: [stored(1, ['session-a'], 29 * DAY), stored(2, ['session-c'], 29 * DAY)],
+    'prs:session-old': [stored(3, ['session-old'], DAY)],
+    'prs:session-b': [stored(4, ['session-b'], 29 * DAY)],
+  })
+  startedSession(on, 'session-a')
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+
+  expect((data.get('prs:session-a') as { id: number }[]).map(p => p.id)).toEqual([1])
+  expect(data.has('prs:session-old')).toBe(false)
+  expect(data.has('prs:session-b')).toBe(true)
+  expect(data.has('prs')).toBe(true)
+})
+
+test('a PR from another session can be adopted into this one', async ($, on) => {
+  const clock = mock.clock(on, { now: 30 * DAY })
+  const data = memoryStore(on, { 'prs:session-b': [stored(9, ['session-b'], 30 * DAY)] })
+  startedSession(on, 'session-a')
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
+  })
+  await pane.press({ key: 'scope-all' })
+  await pane.press({ key: 'adopt-ado:9' })
+  await clock.advance(1)
+
+  expect((data.get('prs:session-a') as { id: number; sessions: string[] }[]).map(p => [p.id, p.sessions])).toEqual([[9, ['session-a']]])
+  expect((data.get('prs:session-b') as { id: number }[]).map(p => p.id)).toEqual([9])
 })

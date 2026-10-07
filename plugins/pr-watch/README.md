@@ -59,7 +59,7 @@ Inside a session you can also just ask Claude ("how do I watch a PR?", "why is m
 
 ### Which PRs a session watches
 
-Those created in it (any repository, via `az`, `gh` or the Azure DevOps REST API, whatever the output format), the open PR of the current branch, PRs of spec tasks `In Review`, and those added with `/pr-watch`. Only these show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session and its PRs. The saved list spans sessions: the overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
+Those created in it (any repository, via `az`, `gh` or the Azure DevOps REST API, whatever the output format), the open PR of the current branch, PRs of spec tasks `In Review`, and those added with `/pr-watch`. Only these show in the band, get polled and send notifications, so two sessions on different fronts never mix or notify twice. `claude --continue` keeps the session and its PRs. Each session saves its own list, so parallel sessions never overwrite each other; the list of a session idle for 14 days is dropped. The overview's `all` filter shows other sessions' PRs with their last known state, and `+ watch here` brings one into the current session. Finished PRs drop off 24h after they settle.
 
 ## Spec tasks
 
