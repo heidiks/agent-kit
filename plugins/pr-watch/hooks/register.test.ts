@@ -57,8 +57,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.press({ key: 'inv-ado:123-7' })
     expect(prompts[0]).toContain('build 7')
 
-    await ui.press({ key: 'collapse' })
-    expect((await ui.find({ key: 'collapse' }))?.text).toBe('▾ expand')
+    await ui.press({ key: 'mode' })
+    expect((await ui.find({ key: 'mode' }))?.text).toBe('⇕ compact')
+    await ui.press({ key: 'mode' })
+    await ui.press({ key: 'mode' })
 
     await ui.press({ key: 'rm-ado:123' })
     expect(await ui.find({ text: 'remove?' })).toBeDefined()
@@ -103,9 +105,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     for (const expected of ['table', 'tree', 'cards', 'trail', 'table']) {
       expect((await ui.find({ key: 'style' }))?.text).toBe(`▤ ${expected}`)
       expect(await ui.find({ text: 'Run Lint: exit 2' })).toBeDefined()
-      await ui.press({ key: 'collapse' })
-      await ui.drawn()
-      await ui.press({ key: 'collapse' })
+      for (let i = 0; i < 3; i++) {
+        await ui.press({ key: 'mode' })
+        await ui.drawn()
+      }
       await ui.press({ key: 'style' })
     }
 
@@ -284,12 +287,69 @@ test('long lists: band shows maxRows, groups finished PRs and opens the rest in 
   expect((await band.find({ key: 'more' }))?.text).toContain('+4 more')
 
   await band.press({ key: 'more' })
-  expect(opened).toEqual(['pr-watch'])
+  expect(opened).toEqual(['pr-watch-overview'])
 
   const pane = await $.ui.mount({
-    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch',
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
     props: { title: 'Pull requests', isFocused: true, bodyColumns: 120 } as never,
   })
   expect((await pane.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(7)
   expect(await pane.find({ key: 'more' })).toBe(undefined)
+})
+
+test('mini mode: one line with counts and the most urgent PR', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('process.run', (_$, e) => ({
+    value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
+  for (const id of [1, 2, 6]) {
+    await $.command.run({ command: 'pr-watch', args: String(id) } as never)
+  }
+  await clock.advance(1)
+  await $.command.run({ command: 'pr-watch', args: 'mode mini' } as never)
+
+  const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect((await band.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(1)
+  expect(await band.find({ type: 'Text', text: 'build' })).toBeDefined()
+  expect(await band.find({ key: 'style' })).toBe(undefined)
+  expect((await band.find({ key: 'mode' }))?.text).toBe('⇕ mini')
+  expect(await band.find({ key: 'overview' })).toBeDefined()
+})
+
+test('overview: scope filter by session, timeline and a haiku summary on demand', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  const prompts: string[] = []
+  on('process.run', (_$, e) => ({
+    value: { exitCode: 0, stdout: e.argv[0] === 'az' ? manyAnswer(e.argv) : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+  }))
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [{ key: 'theme', value: 'dark' }] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('model.complete', (_$, e) => {
+    prompts.push(String(e.prompt))
+    return { value: { isAnswered: true, text: '- PR 1 build is failing', usage: {} } } as never
+  })
+
+  await $.command.run({ command: 'pr-watch', args: '1' } as never)
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'pr-watch', args: '2' } as never)
+  await clock.advance(1)
+
+  const pane = await $.ui.mount({
+    plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
+    props: { title: 'PR overview', isFocused: true, bodyColumns: 120 } as never,
+  })
+  expect((await pane.find({ key: 'scope-session' }))?.text).toContain('this session (1)')
+  expect(await pane.find({ type: 'Text', text: 'TIMELINE' })).toBeDefined()
+
+  await pane.press({ key: 'scope-session' })
+  expect((await pane.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(1)
+
+  await pane.press({ key: 'summarize' })
+  expect(prompts[0]).toContain('web-app !2')
+  expect(prompts[0]).not.toContain('web-app !1')
+  expect(await pane.find({ type: 'Text', text: '- PR 1 build is failing' })).toBeDefined()
 })

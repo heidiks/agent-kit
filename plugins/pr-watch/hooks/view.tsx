@@ -1,9 +1,11 @@
-import type { Color, EngineInterface, RenderChildren, TextHoverProps } from 'claude-code'
+import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverProps } from 'claude-code'
 
-import type { BandStyle, Check, CheckState, Phase, Tone, WatchedPr } from '../types'
-import { ago, byUrgency, ICONS, isStale, MAX_INLINE_STAGES, overallState, PHASE_LABELS, SPINNER } from './ado'
+import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, SummaryStatus, Tone, WatchedPr } from '../types'
+import { ago, byUrgency, ICONS, isStale, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
+
+export const BAND_MODES: BandMode[] = ['full', 'compact', 'mini']
 
 export const LEGACY_STYLES: Record<string, BandStyle> = { tabela: 'table', arvore: 'tree', trilha: 'trail' }
 
@@ -18,11 +20,11 @@ export type BandActions = {
   remove: (key: string) => void
   askRemove: (key: string) => void
   cancelRemove: () => void
-  showAll: () => void
+  openOverview: () => void
   toggleDone: () => void
   open: (url: string) => void
   clearDone: () => void
-  toggleCollapse: () => void
+  cycleMode: () => void
   hide: () => void
   cycleStyle: () => void
   investigate: (pr: WatchedPr, item: Check) => void
@@ -33,7 +35,7 @@ export type BandContext = {
   list: WatchedPr[]
   tick: number
   now: number
-  collapsed: boolean
+  mode: BandMode
   style: BandStyle
   tone: Tone
   pendingRemove: string
@@ -84,7 +86,8 @@ const repoName = (pr: WatchedPr) => (pr.provider === 'github' && pr.owner ? `${p
 
 export function renderBand(ctx: BandContext) {
   const { Box, Button, Link, Text } = ctx.el
-  const { list, tick, now, collapsed, actions } = ctx
+  const { list, tick, now, actions } = ctx
+  const collapsed = ctx.mode === 'compact'
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const quiet = isDark ? { dimColor: true } : { color: 'inactive' as Color }
@@ -372,6 +375,38 @@ export function renderBand(ctx: BandContext) {
   const rows = candidates.slice(0, ctx.limit)
   const hiddenCount = candidates.length - rows.length
 
+  const modeButtons = [
+    <Button key="mode" plain dimColor={buttonDim} hover={hoverOf('btn-mode')} label={`⇕ ${ctx.mode}`} onPress={actions.cycleMode} />,
+    <Button key="overview" plain dimColor={buttonDim} hover={hoverOf('btn-overview')} label="⊞ overview" onPress={actions.openOverview} />,
+    <Button key="hide" plain dimColor={buttonDim} hover={hoverOf('btn-hide')} label="⊖ hide" onPress={actions.hide} />,
+  ]
+
+  if (ctx.mode === 'mini' && !ctx.isPane) {
+    const top = ordered.find(p => !p.isDone) ?? ordered[0]
+    const topState = top ? overallState(top.checks, top.phase) : 'ok'
+    const attention = top?.checks.find(c => c.state !== 'ok' && c.state !== 'skipped')
+    return (
+      <Box flexDirection="row" gap={2} paddingX={1}>
+        <Text bold color="claude">PRs</Text>
+        {SUMMARY_ORDER.filter(s => counts[s]).map(s => (
+          <Text color={STATE_COLORS[s]}>{`${glyph(s)} ${counts[s]}`}</Text>
+        ))}
+        {top && (
+          <Box flexDirection="row" gap={1} flexShrink={1}>
+            {mark(topState)}
+            {prLink(top)}
+            <Text color={faint}>{repoName(top)}</Text>
+            <Text wrap="truncate-end" color={STATE_COLORS[attention?.state ?? topState]}>
+              {attention ? `${attention.name}${attention.note ? ` (${attention.note})` : ''}` : PHASE_LABELS[top.phase]}
+            </Text>
+          </Box>
+        )}
+        <Box flexGrow={1} />
+        {modeButtons}
+      </Box>
+    )
+  }
+
   const header = (
     <Box flexDirection="row" gap={2}>
       <Text bold color="claude">Pull requests</Text>
@@ -383,8 +418,7 @@ export function renderBand(ctx: BandContext) {
       )}
       <Box flexGrow={1} />
       <Button key="style" plain dimColor={buttonDim} hover={hoverOf('btn-style')} label={`▤ ${ctx.style}`} onPress={actions.cycleStyle} />
-      <Button key="collapse" plain dimColor={buttonDim} hover={hoverOf('btn-collapse')} label={collapsed ? '▾ expand' : '▴ collapse'} onPress={actions.toggleCollapse} />
-      {!ctx.isPane && <Button key="hide" plain dimColor={buttonDim} hover={hoverOf('btn-hide')} label="⊖ hide" onPress={actions.hide} />}
+      {!ctx.isPane && modeButtons}
     </Box>
   )
 
@@ -403,7 +437,7 @@ export function renderBand(ctx: BandContext) {
       )}
       {done.length > 0 && <Button key="clear" plain dimColor={buttonDim} hover={hoverOf('btn-clear')} label="⌫ clear" onPress={actions.clearDone} />}
       {hiddenCount > 0 && (
-        <Button key="more" variant="primary" label={`+${hiddenCount} more ›`} onPress={actions.showAll} />
+        <Button key="more" variant="primary" label={`+${hiddenCount} more ›`} onPress={actions.openOverview} />
       )}
     </Box>
   )
@@ -413,6 +447,126 @@ export function renderBand(ctx: BandContext) {
       {header}
       {body()}
       {footer}
+    </Box>
+  )
+}
+
+export type OverviewContext = BandContext & {
+  scope: OverviewScope
+  sessionCount: number
+  summary: string
+  summaryStatus: SummaryStatus
+  overview: {
+    setScope: (scope: OverviewScope) => void
+    summarize: () => void
+    copySummary: (surface: RenderSurface) => void
+  }
+}
+
+const TIMELINE_STEPS = 6
+
+export function renderOverview(ctx: OverviewContext) {
+  const { Box, Button, Text } = ctx.el
+  const isDark = ctx.tone === 'dark'
+  const faint: Color = isDark ? 'subtle' : 'inactive'
+  const stats = overviewStats(ctx.list)
+  const ordered = byUrgency(ctx.list)
+
+  const scopeButton = (scope: OverviewScope, label: string) =>
+    ctx.scope === scope ? (
+      <Button key={`scope-${scope}`} variant="primary" label={label} onPress={() => ctx.overview.setScope(scope)} />
+    ) : (
+      <Button key={`scope-${scope}`} plain dimColor={isDark} hover={hoverOf(`scope-${scope}`)} label={label} onPress={() => ctx.overview.setScope(scope)} />
+    )
+
+  const stat = (count: number, label: string, state: CheckState) =>
+    count > 0 && <Text color={STATE_COLORS[state]}>{`${ICONS[state]} ${count} ${label}`}</Text>
+
+  const timelineRow = (pr: WatchedPr) => {
+    const steps = (pr.history ?? []).slice(-TIMELINE_STEPS)
+    return (
+      <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+        <Box width={28}>
+          <Text bold wrap="truncate-end">{prLabel(pr)}</Text>
+        </Box>
+        {steps.length === 0 && <Text color={faint}>no changes recorded yet</Text>}
+        {steps.map((step, i) => (
+          <Box flexDirection="row" gap={1}>
+            {i > 0 && <Text color={faint}>›</Text>}
+            <Text color={STATE_COLORS[step.state]}>{ICONS[step.state]}</Text>
+            <Text>{step.text.split(' · ')[0]}</Text>
+            <Text color={faint}>{ago(ctx.now - step.at)}</Text>
+          </Box>
+        ))}
+      </Box>
+    )
+  }
+
+  const summaryBody = () => {
+    if (ctx.summaryStatus === 'running') {
+      return <Text color="suggestion">summarizing with haiku…</Text>
+    }
+    if (ctx.summaryStatus === 'error') {
+      return (
+        <Box flexDirection="row" gap={2}>
+          <Text color="warning">Could not summarize.</Text>
+          <Button key="summarize" plain hover={hoverOf('btn-summarize')} label="✎ retry" onPress={ctx.overview.summarize} />
+        </Box>
+      )
+    }
+    if (ctx.summary === '') {
+      return (
+        <Box flexDirection="row" gap={2}>
+          <Button key="summarize" variant="primary" label="✎ summarize" onPress={ctx.overview.summarize} />
+          <Text color={faint}>one short call to haiku with the data above</Text>
+        </Box>
+      )
+    }
+    return (
+      <Box flexDirection="column">
+        <Text>{ctx.summary}</Text>
+        <Box flexDirection="row" gap={2}>
+          <Button key="copy-summary" plain hover={hoverOf('btn-copy-summary')} label="⧉ copy" onPress={press => ctx.overview.copySummary(press.surface)} />
+          <Button key="summarize" plain dimColor={isDark} hover={hoverOf('btn-summarize')} label="✎ again" onPress={ctx.overview.summarize} />
+        </Box>
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column" paddingX={1} rowGap={1}>
+      <Box flexDirection="row" gap={2}>
+        <Text bold color="claude">PR overview</Text>
+        {scopeButton('all', 'all')}
+        {scopeButton('session', `this session (${ctx.sessionCount})`)}
+        <Box flexGrow={1} />
+        <Text color={faint}>esc to close</Text>
+      </Box>
+      <Box flexDirection="row" gap={2}>
+        <Text>{`${stats.total} PRs`}</Text>
+        {stat(stats.failing, 'failing', 'fail')}
+        {stat(stats.waiting, 'waiting', 'pending')}
+        {stat(stats.running, 'running', 'running')}
+        {stat(stats.merged, 'merged', 'ok')}
+        {stats.finished > 0 && <Text color={faint}>{`${stats.finished} finished`}</Text>}
+      </Box>
+      {ctx.list.length === 0 ? (
+        <Text color={faint}>No PRs in this scope.</Text>
+      ) : (
+        renderBand({ ...ctx, mode: 'full', isPane: true, limit: Number.POSITIVE_INFINITY, doneExpanded: true })
+      )}
+      {ordered.length > 0 && (
+        <Box flexDirection="column">
+          <Text bold color={faint}>TIMELINE</Text>
+          {ordered.map(pr => timelineRow(pr))}
+        </Box>
+      )}
+      {ordered.length > 0 && (
+        <Box flexDirection="column">
+          <Text bold color={faint}>SUMMARY</Text>
+          {summaryBody()}
+        </Box>
+      )}
     </Box>
   )
 }

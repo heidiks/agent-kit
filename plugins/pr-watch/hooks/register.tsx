@@ -1,11 +1,11 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PluginOptions, Register, Timer } from 'claude-code'
 
-import type { BandStyle, Tone, WatchedPr } from '../types'
-import { adoKey, applyCheck, describe, ICONS, mergeLists, overallState, parsePrId, pollDelay, SPINNER } from './ado'
+import type { BandMode, BandStyle, OverviewScope, SummaryStatus, Tone, WatchedPr } from '../types'
+import { adoKey, applyCheck, describe, ICONS, mergeLists, overallState, parsePrId, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt } from './ado'
 import { githubKey, parseGithubRef } from './github'
 import { checkPr, currentBranchSeeds, investigatePrompt, isEnabled, type Io, type Seed, type Settings } from './providers'
-import { BAND_STYLES, LEGACY_STYLES, renderBand, tally, toneOf } from './view'
+import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
 const TICK_MS = 5_000
 const SPINNER_MS = 120
@@ -13,14 +13,20 @@ const STORE_KEY = 'prs'
 const STYLE_KEY = 'style'
 const prs = atom({ plugin: 'pr-watch', key: 'prs' } as const, [])
 const frame = atom({ plugin: 'pr-watch', key: 'frame' } as const, 0)
-const isCollapsed = atom({ plugin: 'pr-watch', key: 'isCollapsed' } as const, false)
+const mode = atom({ plugin: 'pr-watch', key: 'mode' } as const, 'full' as BandMode)
+const scope = atom({ plugin: 'pr-watch', key: 'scope' } as const, 'all' as OverviewScope)
+const sessionId = atom({ plugin: 'pr-watch', key: 'sessionId' } as const, '')
+const summary = atom({ plugin: 'pr-watch', key: 'summary' } as const, '')
+const summaryStatus = atom({ plugin: 'pr-watch', key: 'summaryStatus' } as const, 'idle' as SummaryStatus)
+const MODE_KEY = 'mode'
 const isHidden = atom({ plugin: 'pr-watch', key: 'isHidden' } as const, false)
 const style = atom({ plugin: 'pr-watch', key: 'style' } as const, 'table' as BandStyle)
 const tone = atom({ plugin: 'pr-watch', key: 'tone' } as const, 'unknown' as Tone)
 const pendingRemove = atom({ plugin: 'pr-watch', key: 'pendingRemove' } as const, '')
 const CONFIRM_MS = 6_000
 const PARALLEL_CHECKS = 3
-const PANE = 'pr-watch'
+const OVERVIEW = 'pr-watch-overview'
+const SUMMARY_MODEL = 'haiku'
 const doneExpanded = atom({ plugin: 'pr-watch', key: 'doneExpanded' } as const, false)
 
 let spinner: Timer | undefined
@@ -141,12 +147,16 @@ async function watch($: EngineInterface, seed: Seed, settings: Settings): Promis
   if (!isEnabled(seed, settings)) {
     return 'disabled'
   }
+  const session = await read($, sessionId)
   if ((await read($, prs)).some(p => p.key === seed.key)) {
+    await update($, prs, list =>
+      list.map(p => (p.key === seed.key && !(p.sessions ?? []).includes(session) ? { ...p, sessions: [...(p.sessions ?? []), session] } : p)),
+    )
     return 'known'
   }
   const added: WatchedPr = {
     ...seed, project: '', title: '', url: '', phase: 'loading', checks: [],
-    isDraft: false, isFailed: false, isDone: false,
+    isDraft: false, isFailed: false, isDone: false, sessions: session ? [session] : [],
   }
   await update($, prs, current => [...current, added])
   nextAt.set(seed.key, 0)
@@ -218,13 +228,13 @@ async function syncTone($: EngineInterface): Promise<void> {
   await update($, tone, () => toneOf(theme?.value))
 }
 
-async function draw($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, isPane: boolean, settings: Settings) {
-  return renderBand({
+async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, list: WatchedPr[], isPane: boolean, settings: Settings): Promise<BandContext> {
+  return {
     el,
-    list: await visible($, settings),
+    list,
     tick: await read($, frame),
     now: await $.clock.now(),
-    collapsed: await read($, isCollapsed),
+    mode: await read($, mode),
     style: await read($, style),
     tone: await read($, tone),
     pendingRemove: await read($, pendingRemove),
@@ -237,14 +247,85 @@ async function draw($: EngineInterface, el: ReturnType<EngineInterface['ui']['re
       cancelRemove: () => void update($, pendingRemove, () => ''),
       open: url => void openUrl($, url),
       clearDone: () => void remove($, p => !p.isDone, settings),
-      toggleCollapse: () => void update($, isCollapsed, v => !v),
+      cycleMode: () => void cycleMode($),
       toggleDone: () => void update($, doneExpanded, v => !v),
-      showAll: () => void $.ui.open({ id: PANE, title: 'Pull requests' }).catch(() => $.ui.toast('Could not open the full list')),
+      openOverview: () => void openOverview($),
       hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
       cycleStyle: () => void cycleStyle($),
       investigate: (pr, item) =>
         void $.prompt.submit({ text: investigatePrompt(pr, item) })
           .catch(() => $.ui.toast('Could not send the investigation prompt')),
+    },
+  }
+}
+
+async function cycleMode($: EngineInterface): Promise<void> {
+  const current = await read($, mode)
+  const next = BAND_MODES[(BAND_MODES.indexOf(current) + 1) % BAND_MODES.length] ?? 'full'
+  await update($, mode, () => next)
+  await $.store.set(MODE_KEY, next)
+}
+
+async function openOverview($: EngineInterface): Promise<void> {
+  const opened = await $.ui.open({ id: OVERVIEW, title: 'PR overview', focus: true, closeOnEscape: true, rows: 24 }).catch(() => undefined)
+  if (!opened?.isPlaced) {
+    $.ui.toast('Could not open the PR overview here')
+  }
+}
+
+async function scopedList($: EngineInterface, settings: Settings): Promise<WatchedPr[]> {
+  const list = await visible($, settings)
+  if ((await read($, scope)) === 'all') {
+    return list
+  }
+  const session = await read($, sessionId)
+  return list.filter(p => (p.sessions ?? []).includes(session))
+}
+
+async function summarize($: EngineInterface, settings: Settings): Promise<void> {
+  const list = await scopedList($, settings)
+  if (list.length === 0) {
+    return
+  }
+  await update($, summaryStatus, () => 'running')
+  const result = await $.model.complete({
+    model: SUMMARY_MODEL,
+    system: SUMMARY_SYSTEM,
+    prompt: summaryPrompt(list, await $.clock.now()),
+    maxTokens: 500,
+  }).catch(() => undefined)
+  if (result?.isAnswered) {
+    await update($, summary, () => result.text.trim())
+    await update($, summaryStatus, () => 'idle')
+  } else {
+    await update($, summaryStatus, () => 'error')
+  }
+}
+
+async function copySummary($: EngineInterface, surface: Parameters<EngineInterface['ui']['copy']>[0]['surface']): Promise<void> {
+  const copied = await $.ui.copy({ text: await read($, summary), surface })
+  $.ui.toast(copied.isCopied ? 'Summary copied' : 'Could not copy the summary')
+}
+
+async function drawBand($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings) {
+  return renderBand(await bandContext($, el, await visible($, settings), false, settings))
+}
+
+async function drawOverview($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, settings: Settings) {
+  const session = await read($, sessionId)
+  const all = await visible($, settings)
+  const context = await bandContext($, el, await scopedList($, settings), true, settings)
+
+  return renderOverview({
+    ...context,
+    scope: await read($, scope),
+    sessionCount: all.filter(p => (p.sessions ?? []).includes(session)).length,
+    summary: await read($, summary),
+    summaryStatus: await read($, summaryStatus),
+    overview: {
+      setScope: next => void update($, scope, () => next).then(() => update($, summary, () => '')),
+      summarize: () => void summarize($, settings),
+      copySummary: surface => void copySummary($, surface),
     },
   })
 }
@@ -255,7 +336,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pr-watch',
-      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | rm <target> | all | clear | hide | show | style [name]',
+      description: 'Watch ADO/GitHub PRs: /pr-watch <id|url|owner/repo#N> | rm <target> | overview | mode [full|compact|mini] | clear | hide | show | style [name]',
     })
     const stored = ((await $.store.get(STORE_KEY)) as WatchedPr[] | undefined) ?? []
     const now = await $.clock.now()
@@ -266,6 +347,12 @@ export const register: Register = (on, options) => {
     if (BAND_STYLES.includes(savedStyle)) {
       await update($, style, () => savedStyle)
     }
+    const savedMode = (await $.store.get(MODE_KEY)) as BandMode | undefined
+    if (savedMode && BAND_MODES.includes(savedMode)) {
+      await update($, mode, () => savedMode)
+    }
+    const id = await $.session.id()
+    await update($, sessionId, () => id)
     await syncTone($)
     $.clock.every(TICK_MS, () => void refresh($, settings))
     $.clock.after(0, () => void refresh($, settings))
@@ -291,9 +378,18 @@ export const register: Register = (on, options) => {
       await remove($, pr => !matches(pr), settings)
       return { text: `Stopped watching ${arg}.` }
     }
-    if (verb === 'all') {
-      await $.ui.open({ id: PANE, title: 'Pull requests' })
-      return { text: 'Opened the full list.' }
+    if (verb === 'all' || verb === 'overview') {
+      await openOverview($)
+      return { text: 'Opened the PR overview.' }
+    }
+    if (verb === 'mode') {
+      if (BAND_MODES.includes(arg as BandMode)) {
+        await update($, mode, () => arg as BandMode)
+        await $.store.set(MODE_KEY, arg)
+      } else {
+        await cycleMode($)
+      }
+      return { text: `Band mode: ${await read($, mode)}.` }
     }
     if (verb === 'clear') {
       await remove($, p => !p.isDone, settings)
@@ -374,15 +470,8 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
-    return draw($, $.ui.resolve(e), false, settings)
+    return drawBand($, $.ui.resolve(e), settings)
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    if ((await visible($, settings)).length === 0) {
-      const { Text } = $.ui.resolve(e)
-      return <Text>No PRs being watched.</Text>
-    }
-
-    return draw($, $.ui.resolve(e), true, settings)
-  })
+  on('ui.render', { component: 'Pane', requestId: OVERVIEW }, async ($, e) => drawOverview($, $.ui.resolve(e), settings))
 }
