@@ -22,7 +22,9 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Failures:** the failing task or annotation inline, plus an `investigate` button that asks Claude to read the log and propose a fix (nothing is applied).
 - **Row actions:** `↗ open` opens the PR in the browser, `×` stops watching it after an inline `remove? yes no` confirmation.
 - **SINCE:** how long the PR has been in its current state. The header warns when data is stale.
-- **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok). The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`, which opens the full list in a side pane.
+- **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok). The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
+- **Modes:** `⇕` cycles the band between `full`, `compact` (one row per PR) and `mini` (one line: counts and the most urgent PR).
+- **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, an `all` / `this session` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
 - Four layouts (`table`, `tree`, `cards`, `trail`); follows light and dark themes.
 
 ## Usage
@@ -33,7 +35,8 @@ PRs are picked up when Claude runs `az repos pr create` or `gh pr create`, from 
 /pr-watch 4242                                  # Azure DevOps PR id
 /pr-watch https://github.com/owner/repo/pull/7  # any PR URL
 /pr-watch owner/repo#7
-/pr-watch all                                   # full list in a side pane
+/pr-watch overview                              # popup with every PR, timeline and summary
+/pr-watch mode [full|compact|mini]
 /pr-watch rm <target> | clear | hide | show | style [table|tree|cards|trail]
 ```
 

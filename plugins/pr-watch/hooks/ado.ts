@@ -1,4 +1,4 @@
-import type { Check, CheckState, Phase, WatchedPr } from '../types'
+import type { Check, CheckState, HistoryEntry, Phase, WatchedPr } from '../types'
 
 export type Reviewer = { displayName: string; vote: number; isRequired?: boolean; isContainer?: boolean }
 
@@ -267,6 +267,7 @@ export function describe(phase: Phase, checks: Check[]): string {
 }
 
 export const STALE_AFTER_MS = 3 * 60 * 1000
+export const HISTORY_LIMIT = 20
 
 export type CheckOutcome = { value: Verdict & Partial<WatchedPr>; error?: undefined } | { value?: undefined; error: string }
 
@@ -274,7 +275,9 @@ export function applyCheck(pr: WatchedPr, outcome: CheckOutcome, checkedAt: numb
   if (!outcome.value) {
     return { next: { ...pr, error: outcome.error, checkedAt }, isChanged: false }
   }
-  const isChanged = describe(pr.phase, pr.checks) !== describe(outcome.value.phase, outcome.value.checks)
+  const after = describe(outcome.value.phase, outcome.value.checks)
+  const isChanged = describe(pr.phase, pr.checks) !== after
+  const entry: HistoryEntry = { at: checkedAt, state: overallState(outcome.value.checks, outcome.value.phase), text: after }
   const next: WatchedPr = {
     ...pr,
     ...outcome.value,
@@ -282,6 +285,7 @@ export function applyCheck(pr: WatchedPr, outcome: CheckOutcome, checkedAt: numb
     checkedAt,
     changedAt: isChanged || pr.changedAt === undefined ? checkedAt : pr.changedAt,
     doneAt: outcome.value.isDone ? (pr.doneAt ?? checkedAt) : undefined,
+    history: isChanged ? [...(pr.history ?? []), entry].slice(-HISTORY_LIMIT) : pr.history,
   }
 
   return { next, isChanged }
@@ -324,3 +328,36 @@ export function mergeLists(current: WatchedPr[], stored: WatchedPr[], now: numbe
     p => !(p.isDone && p.doneAt !== undefined && now - p.doneAt > FORGET_DONE_AFTER_MS),
   )
 }
+
+export type OverviewStats = { total: number; merged: number; failing: number; waiting: number; running: number; finished: number }
+
+export function overviewStats(list: WatchedPr[]): OverviewStats {
+  const states = list.map(pr => overallState(pr.checks, pr.phase))
+  return {
+    total: list.length,
+    merged: list.filter(pr => pr.phase === 'merged').length,
+    failing: states.filter(s => s === 'fail').length,
+    waiting: states.filter(s => s === 'pending' || s === 'warn').length,
+    running: states.filter(s => s === 'running' || s === 'queued').length,
+    finished: list.filter(pr => pr.isDone).length,
+  }
+}
+
+export function prLabel(pr: WatchedPr): string {
+  return pr.provider === 'github' ? `${pr.owner}/${pr.repo}#${pr.id}` : `${pr.repo} !${pr.id}`
+}
+
+export function summaryPrompt(list: WatchedPr[], now: number): string {
+  const lines = list.map(pr => {
+    const steps = (pr.history ?? []).map(h => `${ago(now - h.at)} ago: ${h.text}`).join('; ')
+    return `- ${prLabel(pr)} "${pr.title}" (${pr.provider}). Now: ${describe(pr.phase, pr.checks)}${pr.isDone ? ' (finished)' : ''}. History: ${steps || 'none'}.`
+  })
+
+  return `Pull requests being watched:\n${lines.join('\n')}`
+}
+
+export const SUMMARY_SYSTEM = [
+  'You summarize pull request activity for a developer, in English, as a short standup-style update.',
+  'Use only the data given. Lead with what needs action (failures, pending reviews or approvals), then what shipped.',
+  'At most 6 bullet points, no headings, no preamble.',
+].join(' ')

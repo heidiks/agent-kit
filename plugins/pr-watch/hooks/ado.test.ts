@@ -208,3 +208,19 @@ test('byUrgency: failing first, then waiting, running, ok, finished last; stable
   ]
   expect(byUrgency(list).map(p => p.id)).toEqual([5, 4, 2, 1, 6, 3])
 })
+
+test('applyCheck: history records only real changes, capped', () => {
+  const state = (s: 'fail' | 'ok') => ({ phase: 'gate' as const, checks: [{ name: 'build', state: s }], isFailed: s === 'fail', isDone: false })
+  let pr = watched({ phase: 'loading' })
+  pr = applyCheck(pr, { value: state('fail') }, 1_000).next
+  pr = applyCheck(pr, { value: state('fail') }, 2_000).next
+  pr = applyCheck(pr, { value: state('ok') }, 3_000).next
+  expect(pr.history?.map(h => [h.at, h.state, h.text])).toEqual([
+    [1_000, 'fail', 'gate · ✗ build'],
+    [3_000, 'ok', 'gate · ✓ build'],
+  ])
+  for (let i = 0; i < 30; i++) {
+    pr = applyCheck(pr, { value: state(i % 2 === 0 ? 'fail' : 'ok') }, 4_000 + i).next
+  }
+  expect(pr.history?.length).toBe(20)
+})
