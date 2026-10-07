@@ -15,7 +15,7 @@ in an order that respects `depends_on`.
 6. Run the project's own checks (format, lint, tests) the way the repo documents them.
 7. **Verify each acceptance criterion** and tick it in the task file. A criterion that
    cannot be verified blocks the task: either fix it or ask the user.
-8. Open the pull request with the `Task:` line, record it in `prs`, set
+8. Open the pull request with a `Task:` line per task it covers, record it in `prs`, set
    `status: In Review`. Without pull requests, set `status: Done` and `completed_at` now.
 9. Regenerate the index (`scripts/prd_index.py`).
 10. Ask before starting the next task, unless the user said to continue through all of them.

@@ -39,7 +39,7 @@ PRD frontmatter (`mode: full` or `mode: lite`).
 | 2 | Spec | `spec.md` filled from the interview | [references/spec.md](references/spec.md) |
 | 3 | Visual overview | Mermaid diagrams in `spec.md` | [references/visual-overview.md](references/visual-overview.md) |
 | 4 | Tasks | `TASK-NNN-*.md` files and the task graph | [references/tasks.md](references/tasks.md) |
-| 5 | Implement | Code, one task at a time, one pull request per task | [references/implement.md](references/implement.md), [references/pull-requests.md](references/pull-requests.md) |
+| 5 | Implement | Code, one task at a time; a pull request per task, or per group of small related tasks | [references/implement.md](references/implement.md), [references/pull-requests.md](references/pull-requests.md) |
 | 6 | Done | Tasks `Done` once merged, PRD `Completed`, index updated | [references/implement.md](references/implement.md) |
 
 Read a phase's reference file only when that phase starts. Layout, IDs, statuses and
@@ -76,4 +76,4 @@ plain text.
 - Record each decision with its alternatives and rationale in the PRD's Decisions table.
 - After any status change, regenerate the index with `scripts/prd_index.py`.
 - Match the codebase: read two or three existing files before writing code or tasks.
-- One task, one branch, one pull request, linked both ways (`prs` and the `Task:` line).
+- A pull request per task by default; small related tasks may share one. Link both ways: `prs` in every task, one `Task:` line per task in the PR.
