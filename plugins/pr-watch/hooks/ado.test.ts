@@ -5,6 +5,7 @@ import {
   ago,
   applyCheck,
   byUrgency,
+  parsePrIds,
   isWaitingTooLong,
   notificationFor,
   describe,
@@ -267,4 +268,11 @@ test('isWaitingTooLong: only PRs waiting on review or approval for over 24h', ()
   expect(isWaitingTooLong(waiting, day + 1)).toBe(true)
   expect(isWaitingTooLong({ ...waiting, checks: [{ name: 'build', state: 'fail' }] }, 2 * day)).toBe(false)
   expect(isWaitingTooLong({ ...waiting, isDone: true }, 2 * day)).toBe(false)
+})
+
+test('parsePrIds: tsv ids from az pr create, JSON and URLs, never stray numbers', () => {
+  const create = 'git push; az repos pr create -r web-app --query pullRequestId -o tsv; az repos pr create -r api --query pullRequestId -o tsv'
+  expect(parsePrIds('19758\n19759\n', create)).toEqual([19758, 19759])
+  expect(parsePrIds('{ "pullRequestId": 7, "url": "x" }\nhttps://dev.azure.com/o/p/_git/r/pullrequest/8')).toEqual([7, 8])
+  expect(parsePrIds('19758\n', 'git log --oneline | wc -l')).toEqual([])
 })

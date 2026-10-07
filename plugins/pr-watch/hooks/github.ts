@@ -85,6 +85,13 @@ export function parseGithubRef(text: string, hosts: string[]): GithubRef | undef
   return undefined
 }
 
+export function parseGithubRefs(text: string, hosts: string[]): GithubRef[] {
+  const refs = [...text.matchAll(new RegExp(URL_PATTERN.source, 'g'))]
+    .filter(m => hosts.includes(m[1] ?? ''))
+    .map(m => ({ host: m[1] ?? '', owner: m[2] ?? '', repo: m[3] ?? '', number: Number(m[4]) }))
+  return refs.filter((ref, i) => refs.findIndex(other => githubKey(other) === githubKey(ref)) === i)
+}
+
 export function parseGithubRemote(remote: string, hosts: string[]): Omit<GithubRef, 'number'> | undefined {
   const match = /^(?:https?:\/\/|git@|ssh:\/\/git@)([^/:]+)[/:]([^/]+)\/([^/\s]+?)(?:\.git)?\s*$/.exec(remote.trim())
   if (!match || !hosts.includes(match[1] ?? '')) {

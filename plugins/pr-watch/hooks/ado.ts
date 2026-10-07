@@ -82,6 +82,17 @@ export function parsePrId(text: string): number | undefined {
   return match ? Number(match[1]) : undefined
 }
 
+export const ADO_PR_CREATE = /\baz\s+repos\s+pr\s+create\b|_apis\/git\/repositories\/[^\s"']+\/pullrequests\b/i
+
+export function parsePrIds(text: string, command = ''): number[] {
+  const ids = [
+    ...[...text.matchAll(/"pullRequestId"\s*:\s*(\d+)/g)].map(m => m[1]),
+    ...[...text.matchAll(/\/pullrequest\/(\d+)/gi)].map(m => m[1]),
+    ...(/\baz\s+repos\s+pr\s+create\b/.test(command) ? [...text.matchAll(/^\s*(\d{2,})\s*$/gm)].map(m => m[1]) : []),
+  ]
+  return [...new Set(ids.map(Number))]
+}
+
 export function repoFromRemote(remote: string): string | undefined {
   const trimmed = remote.trim()
   if (!/dev\.azure\.com|visualstudio\.com/.test(trimmed)) {
