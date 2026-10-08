@@ -85,6 +85,7 @@ def svg(theme):
     out.append('</g></svg>')
     return '\n'.join(out)
 
-dest = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
-for theme in THEMES:
-    open(f'{dest}/band-{theme}.svg', 'w').write(svg(theme))
+if __name__ == '__main__':
+    dest = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
+    for theme in THEMES:
+        open(f'{dest}/band-{theme}.svg', 'w').write(svg(theme))
