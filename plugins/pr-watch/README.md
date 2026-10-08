@@ -65,7 +65,7 @@ Those created in it (any repository, via `az`, `gh` or the Azure DevOps REST API
 
 When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task files under `docs/prd/`, pr-watch links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` lines in the PR description (one PR may cover several tasks), the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
 
-- A `TASK` column appears in the table when any watched PR has a task (`TASK-001+2` for a PR covering three).
+- A PR linked to a task shows it: a `TASK` column in the table, next to the repo in the other styles (`TASK-001+2` for a PR covering three).
 - PRs of tasks `In Review` are watched on session start.
 - The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (as `file://` links, opened by your terminal's default app) and the PR label the PR, so spec → task → PR is a click away.
 - When a task's PR is merged and its post-merge checks pass, `✓ mark … done` (every ready task of that PR) asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.

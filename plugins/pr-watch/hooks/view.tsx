@@ -264,11 +264,17 @@ export function renderBand(ctx: BandContext) {
     ...pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, indent)),
   ]
 
+  const taskText = (pr: WatchedPr) => {
+    const links = linksOf(pr)
+    return links.length > 0 ? <Text color="suggestion">{taskLabel(links)}</Text> : undefined
+  }
+
   const headline = (pr: WatchedPr, extra?: RenderChildren) => (
     <Box flexDirection="row" gap={1}>
       {mark(overallState(pr.checks, pr.phase))}
       {prLink(pr)}
       {pr.repo !== '' && <Text color={faint}>{repoName(pr)}</Text>}
+      {taskText(pr)}
       {pr.isDraft && tag('draft', 'inactive')}
       {titleText(pr)}
       {extra}
@@ -301,6 +307,7 @@ export function renderBand(ctx: BandContext) {
           {mark(state)}
           {prLink(pr)}
           {pr.repo !== '' && <Text bold>{repoName(pr)}</Text>}
+          {taskText(pr)}
           {tag(PHASE_LABELS[pr.phase], PHASE_COLORS[pr.phase])}
           {pr.isDraft && tag('draft', 'inactive')}
           <Box flexGrow={1} />
@@ -316,6 +323,7 @@ export function renderBand(ctx: BandContext) {
           {pr.checks.map(c => chip(c))}
         </Box>
         {!collapsed && details(pr, 2)}
+        {!collapsed && markDoneLine(pr, 2)}
       </Box>
     )
   }
@@ -366,6 +374,7 @@ export function renderBand(ctx: BandContext) {
           })}
         </Box>
         {!collapsed && pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, 4))}
+        {!collapsed && markDoneLine(pr, 2)}
       </Box>
     )
   }
