@@ -5,8 +5,10 @@ A live band above the Claude Code prompt that follows your pull requests from re
 [Install](#install) · [What it shows](#what-it-shows) · [Commands](#commands) · [Spec tasks](#spec-tasks) · [Requirements](#requirements) · [Options](#options) · [Privacy](#privacy)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/band-dark.svg">
-  <img alt="pr-watch band listing pull requests with their checks, reviewers and deploy status" src="assets/band-light.svg">
+  <source media="(prefers-color-scheme: dark) and (prefers-reduced-motion: reduce)" srcset="assets/band-dark.svg">
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/band-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/band-animated-dark.svg">
+  <img alt="pr-watch band following a pull request from creation through a failed build, review, merge and deploy to marking its spec task done" src="assets/band-animated-light.svg">
 </picture>
 
 ## Install
