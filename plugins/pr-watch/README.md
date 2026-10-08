@@ -72,7 +72,7 @@ Those created in it (any repository, via `az`, `gh` or the Azure DevOps REST API
 
 ## Spec tasks
 
-When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task files under `docs/prd/`, pr-watch links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` lines in the PR description (one PR may cover several tasks), the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
+If you use the [spec-driven-dev](../../skills/spec-driven-dev/README.md) skill, installed for you or for the repo, pr-watch reads the task files it writes under `docs/prd/` and links each PR to its task through the [task and pull request contract](../../skills/spec-driven-dev/references/pull-requests.md): the `Task: <PRD>/<TASK>` lines in the PR description (one PR may cover several tasks), the `task/<PRD>/<TASK>` branch, or the PR URL in the task's `prs`.
 
 - A PR linked to a task shows it: a `TASK` column in the table, next to the repo in the other styles (`TASK-001+2` for a PR covering three).
 - PRs of tasks `In Review` are watched on session start.
