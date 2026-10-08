@@ -14,8 +14,11 @@ A live band above the Claude Code prompt that follows your pull requests from re
 ## Install
 
 ```
-/plugin install pr-watch --marketplace heidiks/agent-kit
+/plugin marketplace add heidiks/agent-kit
+/plugin install pr-watch@agent-kit
 ```
+
+Restart the session (`claude --continue` keeps it) to load the band.
 
 It talks to your PRs through the CLIs already logged in on your machine: `az` for Azure DevOps, `gh` for GitHub. Set up at least one, see [Requirements](#requirements).
 
@@ -91,6 +94,8 @@ One of the two, for the providers you use (turn the other off in [Options](#opti
   ```
 
 - **GitHub:** [`gh`](https://cli.github.com) logged in: `gh auth login`, plus `gh auth login --hostname <host>` for each GitHub Enterprise host.
+- **Claude Code 2.1.292 or later**, where the plugin is tested; plugin mods are recent and older versions may not load it.
+- **macOS or Linux.** System notifications use `terminal-notifier`/`osascript` (macOS) or `notify-send` (Linux); Windows is untested.
 
 ## Options
 
@@ -109,6 +114,6 @@ Under `/plugin` > pr-watch > configure:
 
 ## Privacy
 
-pr-watch stores no tokens. Every call goes through your local `az` and `gh` sessions, and the list of watched PRs is kept on your machine.
+pr-watch stores no tokens. Every call goes through your local `az` and `gh` sessions, and the list of watched PRs is kept on your machine. `✎ summarize` sends the titles and states of the listed PRs to Haiku. `⌕ investigate` puts the CI's failure text in a fenced data block marked as untrusted, since whoever opens a PR controls it, and asks Claude only to propose a fix.
 
 > Built on Claude Code's early access plugin hooks API, which may change between releases.

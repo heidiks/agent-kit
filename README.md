@@ -9,10 +9,11 @@ Skills, plugins and Claude Code mods I use day to day. Install only what you nee
 **Claude Code plugins**, one at a time:
 
 ```
-/plugin install <plugin> --marketplace heidiks/agent-kit
+/plugin marketplace add heidiks/agent-kit
+/plugin install <plugin>@agent-kit
 ```
 
-Answer `y` to add the marketplace, then pick the scope. Remove with `/plugin uninstall <plugin>@agent-kit`.
+Then pick the scope. Update with `/plugin marketplace update agent-kit` and `/plugin update <plugin>@agent-kit`; remove with `/plugin uninstall <plugin>@agent-kit`.
 
 **Skills**, into any [Agent Skills](https://agentskills.io) compatible agent (Claude Code, Codex, Cursor, Gemini CLI, Copilot and [others](https://skills.sh)):
 
