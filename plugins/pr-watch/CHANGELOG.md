@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- The task label shows in every band style, not only in the table; cards and trail also get the mark done line.
+
 ## 0.3.1
 
 - Each session saves its own list, so parallel sessions no longer drop each other's PRs.

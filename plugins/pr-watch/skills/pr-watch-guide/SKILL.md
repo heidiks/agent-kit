@@ -48,7 +48,7 @@ with `/pr-watch`. Other sessions' PRs appear only in the overview's `all` filter
 
 With `spec-driven-dev` task files under `docs/prd/`, PRs link to tasks through `Task: <PRD>/<TASK>`
 lines in the PR description, the `task/<PRD>/<TASK>` branch, or the PR URL in a task's `prs`.
-The table gains a `TASK` column, the overview a PLANS section, and a merged, green PR of a task
+Each linked PR shows its task (a `TASK` column in the table, next to the repo in the other styles), the overview a PLANS section, and a merged, green PR of a task
 `In Review` shows `✓ mark … done`, which asks Claude to close the tasks through the skill.
 
 ## Options

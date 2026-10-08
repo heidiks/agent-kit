@@ -514,6 +514,14 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   expect(await ui.find({ type: 'Text', text: 'TASK' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'TASK-002' })).toBeDefined()
 
+  for (const style of ['tree', 'cards', 'trail']) {
+    await $.command.run({ command: 'pr-watch', args: `style ${style}` } as never)
+    const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+    expect(await band.find({ type: 'Text', text: 'TASK-002' })).toBeDefined()
+    expect(await band.find({ key: 'done-ado:123' })).toBeDefined()
+  }
+  await $.command.run({ command: 'pr-watch', args: 'style table' } as never)
+
   const pane = await $.ui.mount({
     plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
     props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
