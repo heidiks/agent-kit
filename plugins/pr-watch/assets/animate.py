@@ -2,12 +2,11 @@ import os
 import sys
 
 sys.dont_write_bytecode = True
-from xml.sax.saxutils import escape
 
-from render import CW, FS, LH, PADX, THEMES, TOP, W, cell, right, row
+from render import CW, FS, LH, PADX, SPIN, THEMES, TOP, W, cell, right, row, runs
+import plans
 
 SPINNER = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-SPIN = '⠹'
 SPIN_STEP = 0.25
 TASK, TITLE, CHECKS = 12, 22, 34
 OPEN = [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]
@@ -19,16 +18,22 @@ def pr_row(state, src, pr, task, repo, title, phase, checks, age):
     task_seg = [(task, 'suggestion')] if task else [('-', 'faint')]
     return row(cell([MARKS[state]], 3), cell([(src, 'faint')], 4), cell([(pr, 'link', 'bu')], 8), cell(task_seg, TASK),
                cell([(repo, 'faint')], 16), cell([(title, 'faint')], TITLE), cell([(phase, phase_color)], 9),
-               cell(checks, CHECKS), cell([(age, 'faint')], 6), OPEN)
+               cell(checks, CHECKS), cell(age if isinstance(age, list) else [(age, 'faint')], 6), OPEN)
 
 
-def header(counts, updated):
+BUTTONS = ['◎ focus', '▤ table', '⇕ full', '⊞ overview', '⊖ hide']
+
+
+def header(counts, updated, lit=None, focused=False):
     left = [(' Pull requests', 'claude', 'b')]
     for state, n in counts:
         if n:
             left += [('  ', 'text'), (f'{MARKS[state][0].strip()} {n}', MARKS[state][1])]
     left += [('  ', 'text'), (f'updated {updated}', 'faint')]
-    return right(left, [('▤ table', 'dim'), ('  ', 'text'), ('⇕ full', 'dim'), ('  ', 'text'), ('⊞ overview', 'dim'), ('  ', 'text'), ('⊖ hide', 'dim'), (' ', 'text')])
+    buttons = [('[ ◉ focus ]', 'claude'), ('  ', 'text'), ('⊞ overview', 'dim')] if focused else []
+    for label in [] if focused else BUTTONS:
+        buttons += [(f'[ {label} ]', 'claude', 'b') if label == lit else (label, 'dim'), ('  ', 'text')]
+    return right(left, buttons[:-1] + [(' ', 'text')] if not focused else buttons + [(' ', 'text')])
 
 
 COLUMNS = row(cell([('', 'text')], 3), cell([('SRC', 'faint', 'b')], 4), cell([('PR', 'faint', 'b')], 8), cell([('TASK', 'faint', 'b')], TASK),
@@ -67,7 +72,11 @@ def caption(text):
 REVIEWERS = [('◐ ', 'warning'), ('Code-Reviewers', 'text')]
 BUILD_RUNNING = [(SPIN + ' ', 'suggestion'), ('build', 'link', 'u')]
 
-SCENES = [
+def band(counts, updated, rows, lit=None):
+    return [header(counts, updated, lit), COLUMNS, *rows]
+
+
+FLOW = [
     (2.4, [('run', 1), ('ok', 1)], '4s ago', [site('run'), API],
      '$ az repos pr create --title "feat(billing): reconcile pix payments"'),
     (2.4, [('run', 2), ('ok', 1)], '1s ago', [billing('run', 'gate', BUILD_RUNNING + gap() + REVIEWERS, '0s'), site('run'), API],
@@ -89,12 +98,47 @@ SCENES = [
      'Merged and deployed: one click closes the spec task'),
 ]
 
+LONG_WAIT = [('! 2d', 'warning', 'b')]
+
+BUSY = [
+    pr_row('fail', 'ado', '!4256', 'TASK-004', 'web-app', 'feat(pix): webhook e…', 'gate', [('✗ ', 'error'), ('build', 'link', 'u')] + gap() + REVIEWERS, '12m'),
+    note([('└ Run Lint: exit code 2 in internal/pix/webhook.go', 'error'), ('  ', 'text'), ('⌕ investigate', 'dim')]),
+    pr_row('wait', 'gh', '#298', '', 'octo-org/webs…', 'fix: checkout redir…', 'merged', ok('build') + gap() + [('◐ ', 'warning'), ('prod', 'link', 'u'), (' (approval)', 'warning')], '2h'),
+    pr_row('wait', 'ado', '!4130', '', 'api', 'chore: rotate signi…', 'gate', ok('build') + gap() + REVIEWERS, LONG_WAIT),
+    pr_row('run', 'ado', '!4261', '', 'api', 'feat: payout limits', 'gate', BUILD_RUNNING + gap() + REVIEWERS, '3m'),
+    pr_row('run', 'gh', '#301', '', 'octo-org/webs…', 'docs: faq update', 'merged', ok('test') + gap() + [(SPIN + ' ', 'suggestion'), ('deploy', 'link', 'u')], '1m'),
+    pr_row('ok', 'ado', '!4242', 'TASK-002', 'web-app', 'feat(billing): reco…', 'merged', ok('CI') + gap() + ok('CD'), '1h'),
+    note([('└ merged and green: ', 'success'), ('[ ✓ mark TASK-002 done ]', 'claude')]),
+]
+BUSY_COUNTS = [('fail', 1), ('run', 2), ('wait', 2), ('ok', 1)]
+
+FOCUSED = [
+    header(BUSY_COUNTS, '8s ago', focused=True),
+    pr_row('fail', 'ado', '!4256', 'TASK-004', 'web-app', 'feat(pix): webhook e…', 'gate', [('✗ ', 'error'), ('build', 'link', 'u')], '12m'),
+    BUSY[1],
+    pr_row('wait', 'gh', '#298', '', 'octo-org/webs…', 'fix: checkout redir…', 'merged', [('◐ ', 'warning'), ('prod', 'link', 'u'), (' (approval)', 'warning')], '2h'),
+    pr_row('wait', 'ado', '!4130', '', 'api', 'chore: rotate signi…', 'gate', REVIEWERS, LONG_WAIT),
+    pr_row('ok', 'ado', '!4242', 'TASK-002', 'web-app', 'feat(billing): reco…', 'merged', [], '1h'),
+    BUSY[7],
+    [(' The rest is on track', 'faint'), ('  ', 'text'), (SPIN + ' 2', 'suggestion')],
+]
+
+LAST_FLOW = FLOW[-1]
+
+SCENES = [
+    *[(duration, band(counts, updated, rows), text) for duration, counts, updated, rows, text in FLOW],
+    (1.6, band(LAST_FLOW[1], LAST_FLOW[2], LAST_FLOW[3], lit='⊞ overview'), '⊞ overview opens every PR with its spec plan'),
+    (4.0, plans.LINES, 'Each spec links to its tasks and their PRs: ✓ mark done, + watch PR, what waits on what'),
+    (2.6, band(BUSY_COUNTS, '8s ago', BUSY, lit='◎ focus'), 'A busy day: six PRs, most of them just running'),
+    (4.0, FOCUSED, '◎ focus keeps only what needs you and folds the rest into one line'),
+]
+
 
 def frames():
-    return [(duration, [header(counts, updated), COLUMNS, *rows], text) for duration, counts, updated, rows, text in SCENES]
+    return SCENES
 
 
-ROWS = 2 + max(len(rows) for _, _, _, rows, _ in SCENES)
+ROWS = max(len(lines) for _, lines, _ in SCENES)
 
 
 def spinners(segs, y, c):
@@ -108,33 +152,6 @@ def spinners(segs, y, c):
     return out
 
 
-def runs(segs, y, c):
-    out, col = [], 0
-    for seg in segs:
-        text, color = seg[0], seg[1]
-        style = seg[2] if len(seg) > 2 else ''
-        word, start = '', 0
-        for i, ch in enumerate(text + ' '):
-            if ch == SPIN:
-                ch = ' '
-            if ch != ' ' and not word:
-                start = col + i
-            if ch != ' ':
-                word += ch
-                continue
-            if word:
-                xs = ' '.join(f'{PADX + (start + k) * CW:.1f}' for k in range(len(word)))
-                attrs = f'x="{xs}" y="{y}" fill="{c[color]}"'
-                if 'b' in style:
-                    attrs += ' font-weight="700"'
-                if 'u' in style:
-                    attrs += ' text-decoration="underline"'
-                out.append(f'<text {attrs}>{escape(word)}</text>')
-                word = ''
-        col += len(text)
-    return out
-
-
 def svg(theme):
     c = THEMES[theme]
     shots = frames()
@@ -142,7 +159,7 @@ def svg(theme):
     width = int(PADX * 2 + W * CW)
     band_bottom = TOP + LH * ROWS
     height = int(band_bottom + LH * 2 + 14)
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="pr-watch band following a pull request from creation to deploy">',
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="pr-watch band following a pull request from creation to deploy, then the overview with spec plans and the focus filter">',
            '<style>', f'.f{{opacity:0;animation:{total:.2f}s step-end infinite}}',
            f'.s{{opacity:0;animation:sp {SPIN_STEP * len(SPINNER):.2f}s step-end infinite}}@keyframes sp{{0%{{opacity:1}}{100 / len(SPINNER):.1f}%{{opacity:0}}100%{{opacity:0}}}}']
     start = 0.0

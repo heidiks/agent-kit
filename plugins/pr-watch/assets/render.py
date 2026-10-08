@@ -10,6 +10,7 @@ THEMES = {
 }
 
 W = 132
+SPIN = '⠹'
 
 def pad(segs, width):
     n = sum(len(t) for t, *_ in segs)
@@ -40,7 +41,7 @@ OPEN = [('[ ↗ open ]', 'claude'), (' ', 'text'), ('×', 'dim')]
 
 LINES = [
     right([(' Pull requests', 'claude', 'b'), ('  ', 'text'), ('✗ 1', 'error'), ('  ', 'text'), ('⠹ 1', 'suggestion'), ('  ', 'text'), ('◐ 1', 'warning'), ('  ', 'text'), ('✓ 1', 'success'), ('  ', 'text'), ('updated 12s ago', 'faint')],
-          [('▤ table', 'dim'), ('  ', 'text'), ('⇕ full', 'dim'), ('  ', 'text'), ('⊞ overview', 'dim'), ('  ', 'text'), ('⊖ hide', 'dim'), (' ', 'text')]),
+          [('◎ focus', 'dim'), ('  ', 'text'), ('▤ table', 'dim'), ('  ', 'text'), ('⇕ full', 'dim'), ('  ', 'text'), ('⊞ overview', 'dim'), ('  ', 'text'), ('⊖ hide', 'dim'), (' ', 'text')]),
     pr_row([('', 'text')], [('SRC', 'faint', 'b')], [('PR', 'faint', 'b')], [('TASK', 'faint', 'b')], [('REPO', 'faint', 'b')], [('TITLE', 'faint', 'b')],
            [('PHASE', 'faint', 'b')], [('CHECKS', 'faint', 'b')], [('SINCE', 'faint', 'b')], []),
     pr_row([(' ✗', 'error')], [('ado', 'faint')], [('!4242', 'link', 'bu')], [('TASK-002', 'suggestion')], [('web-app', 'faint')], [('feat(billing): pix …', 'faint')],
@@ -54,6 +55,33 @@ LINES = [
            [('merged', 'merged')], [('✓ ', 'success'), ('CI', 'link', 'u'), ('  ', 'text'), ('✓ ', 'success'), ('CD', 'link', 'u')], [('1d', 'faint')], [('remove? ', 'error'), ('yes', 'text'), (' ', 'text'), ('no', 'text')]),
     row(cell([('', 'text')], 15), [('└ merged and green: ', 'success'), ('[ ✓ mark TASK-001, TASK-003 done ]', 'claude')]),
 ]
+
+def runs(segs, y, c):
+    out, col = [], 0
+    for seg in segs:
+        text, color = seg[0], seg[1]
+        style = seg[2] if len(seg) > 2 else ''
+        word, start = '', 0
+        for i, ch in enumerate(text + ' '):
+            if ch == SPIN:
+                ch = ' '
+            if ch != ' ' and not word:
+                start = col + i
+            if ch != ' ':
+                word += ch
+                continue
+            if word:
+                xs = ' '.join(f'{PADX + (start + k) * CW:.1f}' for k in range(len(word)))
+                attrs = f'x="{xs}" y="{y}" fill="{c[color]}"'
+                if 'b' in style:
+                    attrs += ' font-weight="700"'
+                if 'u' in style:
+                    attrs += ' text-decoration="underline"'
+                out.append(f'<text {attrs}>{escape(word)}</text>')
+                word = ''
+        col += len(text)
+    return out
+
 
 CW, LH, FS = 8.4, 21, 14
 PADX, TOP = 18, 38

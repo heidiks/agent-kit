@@ -8,7 +8,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
   <source media="(prefers-color-scheme: dark) and (prefers-reduced-motion: reduce)" srcset="assets/band-dark.svg">
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/band-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="assets/band-animated-dark.svg">
-  <img alt="pr-watch band following a pull request from creation through a failed build, review, merge and deploy to marking its spec task done" src="assets/band-animated-light.svg">
+  <img alt="pr-watch band following a pull request from creation through a failed build, review, merge and deploy to marking its spec task done, then opening the overview with the spec plan and turning on focus" src="assets/band-animated-light.svg">
 </picture>
 
 ## Install
@@ -78,6 +78,11 @@ When the repo has [spec-driven-dev](../../skills/spec-driven-dev/README.md) task
 - PRs of tasks `In Review` are watched on session start.
 - The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (as `file://` links, opened by your terminal's default app) and the PR label the PR, so spec → task → PR is a click away.
 - When a task's PR is merged and its post-merge checks pass, `✓ mark … done` (every ready task of that PR) asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/plans-dark.svg">
+  <img alt="pr-watch overview with the PLANS section: a spec, its tasks with status, the linked pull requests, a mark done button and a + watch PR link" src="assets/plans-light.svg">
+</picture>
 
 Without `docs/prd/`, or with the option off, none of this shows up. The skill works without pr-watch too.
 
