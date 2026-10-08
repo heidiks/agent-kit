@@ -8,13 +8,14 @@ export const COMMANDS: CommandHelp[] = [
   { usage: '/pr-watch clear', summary: 'Drop finished PRs' },
   { usage: '/pr-watch clear-all', summary: 'Drop every PR of this session (kept for other sessions that watch it)' },
   { usage: '/pr-watch overview', summary: 'Popup with every PR, plans (spec tasks), timeline and an on-demand summary (alias: all)' },
+  { usage: '/pr-watch focus [on|off]', summary: 'Show only PRs that need you (failing, changes requested, approvals, waiting over 24h, tasks to mark done); without a value, toggles' },
   { usage: '/pr-watch mode [full|compact|mini]', summary: 'Band size; without a value, cycles' },
   { usage: '/pr-watch style [table|tree|cards|trail]', summary: 'Band layout; without a value, cycles' },
   { usage: '/pr-watch hide | show', summary: 'Hide the band (summary moves to the status line) or show it again' },
   { usage: '/pr-watch help', summary: 'This list' },
 ]
 
-export const VERBS = ['', 'mine', 'rm', 'clear', 'clear-all', 'overview', 'all', 'mode', 'style', 'hide', 'show', 'help']
+export const VERBS = ['', 'mine', 'rm', 'clear', 'clear-all', 'overview', 'all', 'focus', 'mode', 'style', 'hide', 'show', 'help']
 
 export function helpText(): string {
   const width = Math.max(...COMMANDS.map(command => command.usage.length))

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.3
+
+- Focus (`◎ focus`, `/pr-watch focus [on|off]`): the band keeps only PRs that need you and hides green checks; the rest fold into one line of counts.
+
 ## 0.3.2
 
 - The task label shows in every band style, not only in the table; cards and trail also get the mark done line.

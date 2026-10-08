@@ -288,6 +288,13 @@ export function isWaitingTooLong(pr: WatchedPr, now: number): boolean {
   return !pr.isDone && pr.changedAt !== undefined && overallState(pr.checks, pr.phase) === 'pending' && now - pr.changedAt > LONG_WAIT_MS
 }
 
+export function needsAttention(pr: WatchedPr, now: number): boolean {
+  if (pr.error || pr.isFailed) return true
+  if (pr.phase === 'abandoned') return false
+  const items = pr.checks.flatMap(c => [c, ...(c.stages ?? [])])
+  return items.some(c => c.state === 'fail' || c.state === 'warn' || c.note === 'awaiting approval') || isWaitingTooLong(pr, now)
+}
+
 export type CheckOutcome = { value: Verdict & Partial<WatchedPr>; error?: undefined } | { value?: undefined; error: string }
 
 export function applyCheck(pr: WatchedPr, outcome: CheckOutcome, checkedAt: number): { next: WatchedPr; isChanged: boolean } {

@@ -23,6 +23,7 @@ deploy. Answer the user's question from this file; suggest the exact command to 
 | `/pr-watch clear` | Drop finished PRs |
 | `/pr-watch clear-all` | Drop every PR of this session (kept for other sessions that watch it) |
 | `/pr-watch overview` | Popup with every PR, plans, timeline and an on-demand summary (alias `all`) |
+| `/pr-watch focus [on\|off]` | Show only PRs that need you; without a value, toggles |
 | `/pr-watch mode [full\|compact\|mini]` | Band size; without a value, cycles |
 | `/pr-watch style [table\|tree\|cards\|trail]` | Band layout; without a value, cycles |
 | `/pr-watch hide` / `show` | Hide the band (a summary goes to the status line) or show it |

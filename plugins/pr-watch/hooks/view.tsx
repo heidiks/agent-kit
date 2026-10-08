@@ -1,7 +1,7 @@
 import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverProps } from 'claude-code'
 
 import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
-import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
+import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, needsAttention, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
 import { activePlans, canMarkDone, fileUrl, normalizeUrl, prsForTask, readyToMarkDone, TASK_STATES, taskLabel, tasksForPr, type TaskLink } from './tasks'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
@@ -30,6 +30,7 @@ export type BandActions = {
   cycleMode: () => void
   hide: () => void
   cycleStyle: () => void
+  toggleFocus: () => void
   investigate: (pr: WatchedPr, item: Check) => void
   markDone: (links: TaskLink[], pr: WatchedPr) => void
   watchUrl: (url: string) => void
@@ -41,6 +42,7 @@ export type BandContext = {
   tick: number
   now: number
   mode: BandMode
+  isFocused: boolean
   style: BandStyle
   tone: Tone
   pendingRemove: string
@@ -104,6 +106,8 @@ export function renderBand(ctx: BandContext) {
   const { Box, Button, Link, Text } = ctx.el
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
+  const isFocused = ctx.isFocused && !ctx.isPane
+  const shownChecks = (pr: WatchedPr) => (isFocused ? pr.checks.filter(c => c.state !== 'ok' && c.state !== 'skipped') : pr.checks)
   const isCurrent = (pr: WatchedPr) => ctx.currentSession === '' || (pr.sessions ?? []).includes(ctx.currentSession)
   const linksOf = (pr: WatchedPr) => tasksForPr(pr, ctx.plans)
   const hasTasks = list.some(pr => linksOf(pr).length > 0)
@@ -290,7 +294,7 @@ export function renderBand(ctx: BandContext) {
         <Box flexDirection="column">
           <Box flexDirection="row" flexWrap="wrap" columnGap={2} paddingLeft={2}>
             {tag(PHASE_LABELS[pr.phase], PHASE_COLORS[pr.phase])}
-            {pr.checks.map(c => checkItem(c))}
+            {shownChecks(pr).map(c => checkItem(c))}
           </Box>
           {details(pr, 4)}
           {markDoneLine(pr, 4)}
@@ -320,7 +324,7 @@ export function renderBand(ctx: BandContext) {
         )}
         {errorLine(pr, 2)}
         <Box flexDirection="row" flexWrap="wrap" columnGap={1} paddingLeft={2}>
-          {pr.checks.map(c => chip(c))}
+          {shownChecks(pr).map(c => chip(c))}
         </Box>
         {!collapsed && details(pr, 2)}
         {!collapsed && markDoneLine(pr, 2)}
@@ -458,7 +462,7 @@ export function renderBand(ctx: BandContext) {
         {showTitle && cellOf(COLUMNS.title, expandButton(pr, 'title', pr.title, COLUMNS.title - 1), true)}
         {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
         <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row" columnGap={2} overflow="hidden">
-          {pr.checks.map(c => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c)}</Box>)}
+          {shownChecks(pr).map(c => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c)}</Box>)}
         </Box>
         {cellOf(
           COLUMNS.age,
@@ -483,9 +487,19 @@ export function renderBand(ctx: BandContext) {
   const ordered = byUrgency(list)
   const awaitsMarkDone = (pr: WatchedPr) => readyToMarkDone(pr, ctx.plans).length > 0
   const done = ordered.filter(p => p.isDone && !awaitsMarkDone(p))
-  const candidates = [...ordered.filter(p => !p.isDone || awaitsMarkDone(p)), ...(ctx.doneExpanded ? done : [])]
+  const needsYou = (pr: WatchedPr) => needsAttention(pr, now) || awaitsMarkDone(pr)
+  const quietOnes = isFocused ? ordered.filter(p => !needsYou(p)) : []
+  const candidates = isFocused
+    ? ordered.filter(needsYou)
+    : [...ordered.filter(p => !p.isDone || awaitsMarkDone(p)), ...(ctx.doneExpanded ? done : [])]
   const rows = candidates.slice(0, ctx.limit)
   const hiddenCount = candidates.length - rows.length
+
+  const focusButton = isFocused ? (
+    <Button key="focus" variant="primary" label="◉ focus" onPress={actions.toggleFocus} />
+  ) : (
+    <Button key="focus" plain dimColor={buttonDim} hover={hoverOf('btn-focus')} label="◎ focus" onPress={actions.toggleFocus} />
+  )
 
   const modeButtons = [
     <Button key="mode" plain dimColor={buttonDim} hover={hoverOf('btn-mode')} label={`⇕ ${ctx.mode}`} onPress={actions.cycleMode} />,
@@ -516,6 +530,7 @@ export function renderBand(ctx: BandContext) {
           </Box>
         )}
         <Box flexGrow={1} />
+        {focusButton}
         {modeButtons}
       </Box>
     )
@@ -531,8 +546,15 @@ export function renderBand(ctx: BandContext) {
         <Text color={hasStale ? 'warning' : faint}>{`${hasStale ? '! ' : ''}updated ${ago(now - lastChecked)} ago`}</Text>
       )}
       <Box flexGrow={1} />
-      <Button key="style" plain dimColor={buttonDim} hover={hoverOf('btn-style')} label={`▤ ${ctx.style}`} onPress={actions.cycleStyle} />
-      {!ctx.isPane && modeButtons}
+      {!ctx.isPane && focusButton}
+      {isFocused ? (
+        <Button key="overview" plain dimColor={buttonDim} hover={hoverOf('btn-overview')} label="⊞ overview" onPress={actions.openOverview} />
+      ) : (
+        <Box flexDirection="row" gap={2}>
+          <Button key="style" plain dimColor={buttonDim} hover={hoverOf('btn-style')} label={`▤ ${ctx.style}`} onPress={actions.cycleStyle} />
+          {!ctx.isPane && modeButtons}
+        </Box>
+      )}
     </Box>
   )
 
@@ -540,10 +562,23 @@ export function renderBand(ctx: BandContext) {
     tree: () => rows.map(pr => tree(pr)),
     cards: () => rows.map(pr => card(pr)),
     trail: () => rows.map(pr => trail(pr)),
-    table: () => [tableHeader, ...rows.map(pr => tableRow(pr))],
+    table: () => [...(isFocused ? [] : [tableHeader]), ...rows.map(pr => tableRow(pr))],
   }[ctx.style]
 
-  const footer = (done.length > 0 || hiddenCount > 0) && (
+  const quietCounts = tally(quietOnes.map(p => (p.isDone ? 'ok' : overallState(p.checks, p.phase))))
+  const focusFooter = isFocused && (
+    <Box flexDirection="row" gap={2} paddingLeft={1}>
+      <Text color={faint}>{rows.length === 0 ? 'Nothing needs you now' : 'The rest is on track'}</Text>
+      {SUMMARY_ORDER.filter(s => quietCounts[s]).map(s => (
+        <Text color={STATE_COLORS[s]}>{`${glyph(s)} ${quietCounts[s]}`}</Text>
+      ))}
+      {hiddenCount > 0 && (
+        <Button key="more" variant="primary" label={`+${hiddenCount} more ›`} onPress={actions.openOverview} />
+      )}
+    </Box>
+  )
+
+  const footer = !isFocused && (done.length > 0 || hiddenCount > 0) && (
     <Box flexDirection="row" gap={2} paddingLeft={1}>
       {done.length > 0 && <Text color={STATE_COLORS.ok}>{`✓ ${done.length} finished`}</Text>}
       {done.length > 0 && !ctx.isPane && (
@@ -561,6 +596,7 @@ export function renderBand(ctx: BandContext) {
       {header}
       {body()}
       {footer}
+      {focusFooter}
     </Box>
   )
 }

@@ -74,6 +74,7 @@ declare module 'claude-code' {
       prs: WatchedPr[]
       frame: number
       mode: BandMode
+      isFocused: boolean
       scope: OverviewScope
       sessionId: string
       summary: string

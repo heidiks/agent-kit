@@ -25,6 +25,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 - **Row actions:** `↗ open` opens the PR in the browser, `×` stops watching it after an inline `remove? yes no` confirmation. Clicking the title or the repo opens a detail line under the row (full title, full repo path, source → target branch, linked task, age); clicking again or `▾` closes it.
 - **SINCE:** how long the PR has been in its current state; a PR waiting on review or approval for over 24h is flagged (`! 2d`). The header warns when data is stale.
 - **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok), newest first within the same state. The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
+- **Focus:** `◎ focus` keeps only the PRs that need you: failing builds or checks, conflicts, changes requested, deploys awaiting approval, reviews waiting over 24h and tasks ready to mark done. Green checks are hidden, the rest of the PRs fold into one line of counts, and only `◉ focus` and `⊞ overview` stay in the header. The choice is remembered.
 - **Modes:** `⇕` cycles the band between `full`, `compact` (one row per PR) and `mini` (one line: counts and the most urgent PR).
 - **System notifications:** failures, changes requested, pending approvals, merges and finished deploys show up outside the terminal (macOS via `terminal-notifier` or `osascript`, Linux via `notify-send`). With `terminal-notifier` installed, clicking one opens the PR.
 - **Overview:** `⊞ overview` opens a scrollable popup with every PR, a per-PR timeline of state changes, a `this session` / `all` filter, and an on-demand `✎ summarize` that asks Haiku for a short standup-style recap you can copy. Esc closes it.
@@ -41,6 +42,7 @@ A live band above the Claude Code prompt that follows your pull requests from re
 | `/pr-watch clear` | Drop finished PRs |
 | `/pr-watch clear-all` | Drop every PR of this session (kept for other sessions that watch it) |
 | `/pr-watch overview` | Popup with every PR, plans, timeline and an on-demand summary (alias `all`) |
+| `/pr-watch focus [on\|off]` | Show only PRs that need you; without a value, toggles |
 | `/pr-watch mode [full\|compact\|mini]` | Band size; without a value, cycles |
 | `/pr-watch style [table\|tree\|cards\|trail]` | Band layout; without a value, cycles |
 | `/pr-watch hide` / `show` | Hide the band (a summary goes to the status line) or show it again |

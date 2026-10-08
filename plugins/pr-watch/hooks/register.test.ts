@@ -822,3 +822,57 @@ test('a PR from another session can be adopted into this one', async ($, on) => 
   expect((data.get('prs:session-a') as { id: number; sessions: string[] }[]).map(p => [p.id, p.sessions])).toEqual([[9, ['session-a']]])
   expect((data.get('prs:session-b') as { id: number }[]).map(p => p.id)).toEqual([9])
 })
+
+test('focus: the band keeps only PRs that need you, trims green checks and remembers the choice', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  const data = memoryStore(on, {})
+  const approved = { ...PR_SHOW, reviewers: [{ displayName: '[Contoso]\\Code-Reviewers', vote: 10, isRequired: true, isContainer: true }] }
+  const running = [{ status: 'running', context: { buildId: 8 }, configuration: { isBlocking: true, type: { displayName: 'Build' } } }]
+  on('process.run', (_$, e) => {
+    const id = Number(e.argv[e.argv.indexOf('--id') + 1])
+    const stdout = e.argv[0] !== 'az' ? '' : e.argv.includes('policy') ? JSON.stringify(id === 1 ? POLICIES : running) : JSON.stringify(id === 1 ? approved : PR_SHOW)
+    return { value: { exitCode: e.argv[0] === 'git' ? 1 : 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  on('command.register', () => ({ value: { isRegistered: true } }) as never)
+  on('config.list', () => ({ value: [] }) as never)
+  on('session.start', (_$, e) => e as never)
+  on('fs.exists', () => ({ value: false }) as never)
+  on('fs.read', () => ({ value: JSON.stringify(TIMELINE) }) as never)
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'pr-watch', args: '1 2' } as never)
+  await clock.advance(1)
+  const prLinks = async (ui: { findAll: (q: object) => Promise<{ props: { href?: unknown } }[]> }) =>
+    (await ui.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h))
+
+  const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect((await prLinks(band)).length).toBe(2)
+  await band.press({ key: 'focus' })
+  expect(data.get('focus')).toBe(true)
+
+  const focused = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await prLinks(focused)).toEqual([`${WEB}/pullrequest/1`])
+  expect(await focused.find({ type: 'Text', text: 'Code-Reviewers' })).toBe(undefined)
+  expect(await focused.find({ type: 'Text', text: 'CHECKS' })).toBe(undefined)
+  expect(await focused.find({ key: 'style' })).toBe(undefined)
+  expect(await focused.find({ type: 'Text', text: 'The rest is on track' })).toBeDefined()
+
+  expect((await $.command.run({ command: 'pr-watch', args: 'focus off' } as never)).text).toBe('Focus off: the band shows every PR.')
+  expect(data.get('focus')).toBe(false)
+  expect((await prLinks(await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND }))).length).toBe(2)
+})
+
+test('focus with nothing to act on shows one quiet line', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  memoryStore(on, { focus: true })
+  startedSession(on, 'session-a')
+
+  await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'pr-watch', args: '2' } as never)
+  await clock.advance(1)
+
+  const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  expect(await band.find({ type: 'Text', text: 'Nothing needs you now' })).toBeDefined()
+  expect((await band.findAll({ type: 'Link' })).filter(l => /pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(0)
+})
