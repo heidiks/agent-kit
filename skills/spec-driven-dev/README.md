@@ -27,6 +27,13 @@ Each phase ends with a checkpoint: continue, revise, skip the next phase, or sto
 
 Each task ships as a pull request on a `task/<PRD>/<TASK>` branch (small related tasks may share one), linked both ways: every task lists the PR in `prs`, and the PR description carries one `Task: <PRD>/<TASK>` line per task. Tasks stay `In Review` until the PR is merged. The contract is in [references/pull-requests.md](references/pull-requests.md); tools such as the `pr-watch` plugin can read it, none is required.
 
+With the [pr-watch](../../plugins/pr-watch/README.md) Claude Code plugin, each PR shows its task in the band, the overview lists every active spec with its tasks and their PRs, and a merged, green PR offers to mark its tasks done:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../../plugins/pr-watch/assets/plans-dark.svg">
+  <img alt="pr-watch overview with the PLANS section: a spec, its tasks with status, the linked pull requests, a mark done button and a + watch PR link" src="../../plugins/pr-watch/assets/plans-light.svg">
+</picture>
+
 ## Files it writes
 
 ```
