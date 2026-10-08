@@ -17,6 +17,8 @@ A live band above the Claude Code prompt that follows your pull requests from re
 /plugin install pr-watch --marketplace heidiks/agent-kit
 ```
 
+It talks to your PRs through the CLIs already logged in on your machine: `az` for Azure DevOps, `gh` for GitHub. Set up at least one, see [Requirements](#requirements).
+
 ## What it shows
 
 - **Gate:** build validation and checks, reviewers and their votes, merge conflicts, drafts.
@@ -78,8 +80,17 @@ Without `docs/prd/`, or with the option off, none of this shows up. The skill wo
 
 ## Requirements
 
-- **Azure DevOps:** [`az`](https://learn.microsoft.com/cli/azure/install-azure-cli) with the `azure-devops` extension and `az devops configure --defaults organization=... project=...`.
-- **GitHub:** [`gh`](https://cli.github.com) logged in (`gh auth login`, plus `--hostname <host>` for GitHub Enterprise).
+One of the two, for the providers you use (turn the other off in [Options](#options)):
+
+- **Azure DevOps:** [`az`](https://learn.microsoft.com/cli/azure/install-azure-cli) logged in, with the `azure-devops` extension and default organization and project:
+
+  ```bash
+  az login
+  az extension add --name azure-devops
+  az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>
+  ```
+
+- **GitHub:** [`gh`](https://cli.github.com) logged in: `gh auth login`, plus `gh auth login --hostname <host>` for each GitHub Enterprise host.
 
 ## Options
 

@@ -25,7 +25,7 @@ npx skills add heidiks/agent-kit -s <skill> -a claude-code  # one skill, one age
 
 | Plugin | What it does | Works with |
 |---|---|---|
-| [pr-watch](plugins/pr-watch/README.md) | Live band above the prompt that follows Azure DevOps and GitHub pull requests from review to deploy | Claude Code |
+| [pr-watch](plugins/pr-watch/README.md) | Live band above the prompt that follows Azure DevOps and GitHub pull requests from review to deploy | Claude Code, with `az` or `gh` logged in |
 
 ## Skills
 
