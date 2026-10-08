@@ -46,6 +46,7 @@ plugins/<name>/                     # one folder per Claude Code plugin, with it
 
 - **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin.
 - **Skill:** create `skills/<name>/SKILL.md` and add it to [Skills](#skills).
+- **Releasing a plugin:** bump `version` in its `plugin.json` and add a `## <version>` section to its `CHANGELOG.md` in the same PR. After the merge, the release workflow tags `<name>-v<version>` and publishes a GitHub release with that section; it fails if the section is missing.
 
 ## License
 

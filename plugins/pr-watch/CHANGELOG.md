@@ -2,7 +2,7 @@
 
 ## 0.3.4
 
-- `investigate` keeps the CI's failure text in a fenced block marked as untrusted data, so a PR cannot inject instructions through its build output.
+- `investigate` keeps the CI's failure text in a fenced block marked as untrusted data, so text from a PR's build output is not read as instructions.
 - README: install with `/plugin marketplace add` and `/plugin install pr-watch@agent-kit`, minimum Claude Code version and supported systems.
 
 ## 0.3.3

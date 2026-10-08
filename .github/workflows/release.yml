@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/*/.claude-plugin/plugin.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag and release each plugin whose version has no tag yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for manifest in plugins/*/.claude-plugin/plugin.json; do
+            dir="${manifest%/.claude-plugin/plugin.json}"
+            name="$(jq -r .name "$manifest")"
+            version="$(jq -r .version "$manifest")"
+            tag="${name}-v${version}"
+            if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+              echo "${tag}: already released"
+              continue
+            fi
+            notes="$(awk -v v="## ${version}" '$0 == v {found = 1; next} found && /^## / {exit} found' "${dir}/CHANGELOG.md" | sed '/./,$!d')"
+            if [ -z "${notes}" ]; then
+              echo "::error file=${dir}/CHANGELOG.md::no '## ${version}' section for ${tag}"
+              exit 1
+            fi
+            printf '%s\n\nInstall: `/plugin marketplace add %s` then `/plugin install %s@agent-kit`.\n' "${notes}" "${GITHUB_REPOSITORY}" "${name}" > notes.md
+            gh release create "${tag}" --target "${GITHUB_SHA}" --title "${name} ${version}" --notes-file notes.md
+            echo "${tag}: released"
+          done

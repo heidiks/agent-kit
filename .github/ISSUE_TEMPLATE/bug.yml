@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in a plugin or skill does not work as documented
+labels: [bug]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - pr-watch
+        - spec-driven-dev
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "Plugin (`/plugin` > Installed), Claude Code (`claude --version`), and for pr-watch `az --version` or `gh --version`."
+      placeholder: "pr-watch 0.3.4, Claude Code 2.1.293, gh 2.80.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you saw instead. A screenshot of the band helps. Remove private repository names, URLs and tokens.
+    validations:
+      required: true
