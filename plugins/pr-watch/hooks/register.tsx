@@ -24,6 +24,8 @@ const sessionId = atom({ plugin: 'pr-watch', key: 'sessionId' } as const, '')
 const summary = atom({ plugin: 'pr-watch', key: 'summary' } as const, '')
 const summaryStatus = atom({ plugin: 'pr-watch', key: 'summaryStatus' } as const, 'idle' as SummaryStatus)
 const MODE_KEY = 'mode'
+const FOCUS_KEY = 'focus'
+const isFocused = atom({ plugin: 'pr-watch', key: 'isFocused' } as const, false)
 const isHidden = atom({ plugin: 'pr-watch', key: 'isHidden' } as const, false)
 const style = atom({ plugin: 'pr-watch', key: 'style' } as const, 'table' as BandStyle)
 const tone = atom({ plugin: 'pr-watch', key: 'tone' } as const, 'unknown' as Tone)
@@ -414,6 +416,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     tick: await read($, frame),
     now: await $.clock.now(),
     mode: await read($, mode),
+    isFocused: await read($, isFocused),
     style: await read($, style),
     tone: await read($, tone),
     pendingRemove: await read($, pendingRemove),
@@ -437,6 +440,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
       openOverview: () => void openOverview($),
       hide: () => void update($, isHidden, () => true).then(() => syncStatus($, settings)),
       cycleStyle: () => void cycleStyle($),
+      toggleFocus: () => void setFocus($, undefined),
       markDone: (links, pr) =>
         void $.prompt.submit({ text: markDonePrompt(links, pr) })
           .catch(() => $.ui.toast('Could not send the mark-done prompt')),
@@ -449,6 +453,13 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
           .catch(() => $.ui.toast('Could not send the investigation prompt')),
     },
   }
+}
+
+async function setFocus($: EngineInterface, value: boolean | undefined): Promise<boolean> {
+  const next = value ?? !(await read($, isFocused))
+  await update($, isFocused, () => next)
+  await $.store.set(FOCUS_KEY, next)
+  return next
 }
 
 async function cycleMode($: EngineInterface): Promise<void> {
@@ -524,7 +535,7 @@ export const register: Register = (on, options) => {
     await $.command.register({
       name: 'pr-watch',
       description: 'Watch Azure DevOps and GitHub PRs (/pr-watch help lists every command)',
-      argumentHint: '[id|url ...] | mine | rm | clear | clear-all | overview | mode | style | hide | show | help',
+      argumentHint: '[id|url ...] | mine | rm | clear | clear-all | overview | focus | mode | style | hide | show | help',
     })
     const id = await $.session.id()
     await update($, sessionId, () => id)
@@ -545,6 +556,9 @@ export const register: Register = (on, options) => {
     const savedMode = (await $.store.get(MODE_KEY)) as BandMode | undefined
     if (savedMode && BAND_MODES.includes(savedMode)) {
       await update($, mode, () => savedMode)
+    }
+    if ((await $.store.get(FOCUS_KEY)) === true) {
+      await update($, isFocused, () => true)
     }
     await syncTone($)
     $.clock.every(TICK_MS, () => void refresh($, settings))
@@ -613,6 +627,13 @@ export const register: Register = (on, options) => {
         await cycleMode($)
       }
       return { text: `Band mode: ${await read($, mode)}.` }
+    }
+    if (verb === 'focus') {
+      if (arg && arg !== 'on' && arg !== 'off') {
+        return { text: 'Use /pr-watch focus [on|off].' }
+      }
+      const isOn = await setFocus($, arg ? arg === 'on' : undefined)
+      return { text: isOn ? 'Focus on: the band shows only PRs that need you.' : 'Focus off: the band shows every PR.' }
     }
     if (verb === 'clear-all') {
       const cleared = await clearSession($, settings)

@@ -7,6 +7,7 @@ import {
   byUrgency,
   parsePrIds,
   isAbandonedList,
+  needsAttention,
   isWaitingTooLong,
   notificationFor,
   describe,
@@ -286,4 +287,18 @@ test('isAbandonedList: only lists whose PRs were all last seen over 14 days ago'
   expect(isAbandonedList([seen({ checkedAt: now - 15 * day }), seen({ checkedAt: now - day })], now)).toBe(false)
   expect(isAbandonedList([seen({})], now)).toBe(false)
   expect(isAbandonedList([seen({ createdAt: now - 15 * day })], now)).toBe(true)
+})
+
+test('needsAttention: failures, changes requested, approvals and long waits; not running or green', () => {
+  const now = 10 * 24 * 60 * 60 * 1000
+  const pr = (fields: Partial<WatchedPr>) => ({ key: 'ado:1', provider: 'ado', id: 1, title: '', url: '', phase: 'gate', checks: [], isDraft: false, isFailed: false, isDone: false, changedAt: now, ...fields }) as WatchedPr
+  expect(needsAttention(pr({ checks: [{ name: 'build', state: 'fail' }] }), now)).toBe(true)
+  expect(needsAttention(pr({ checks: [{ name: 'alice', state: 'warn' }] }), now)).toBe(true)
+  expect(needsAttention(pr({ phase: 'merged', checks: [{ name: 'CD', state: 'pending', note: 'awaiting approval' }] }), now)).toBe(true)
+  expect(needsAttention(pr({ error: 'az failed' }), now)).toBe(true)
+  expect(needsAttention(pr({ checks: [{ name: 'Code-Reviewers', state: 'pending' }] }), now)).toBe(false)
+  expect(needsAttention(pr({ checks: [{ name: 'Code-Reviewers', state: 'pending' }], changedAt: now - 2 * 24 * 60 * 60 * 1000 }), now)).toBe(true)
+  expect(needsAttention(pr({ checks: [{ name: 'build', state: 'running' }] }), now)).toBe(false)
+  expect(needsAttention(pr({ phase: 'merged', isDone: true, checks: [{ name: 'CI', state: 'ok' }] }), now)).toBe(false)
+  expect(needsAttention(pr({ phase: 'abandoned' }), now)).toBe(false)
 })
