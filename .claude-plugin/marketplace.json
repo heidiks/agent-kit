@@ -11,6 +11,14 @@
       "name": "pr-watch",
       "source": "./plugins/pr-watch",
       "description": "Live band above the Claude Code prompt that tracks Azure DevOps and GitHub pull requests from gate to deploy"
+    },
+    {
+      "name": "spec-driven-dev",
+      "source": ".",
+      "description": "The spec-driven-dev skill as a Claude Code plugin: interview, spec, visual overview and tasks before any code, with a checkpoint between phases",
+      "skills": [
+        "./skills/spec-driven-dev"
+      ]
     }
   ]
 }

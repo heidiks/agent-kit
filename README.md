@@ -27,6 +27,7 @@ npx skills add heidiks/agent-kit -s <skill> -a claude-code  # one skill, one age
 | Plugin | What it does | Works with |
 |---|---|---|
 | [pr-watch](plugins/pr-watch/README.md) | Live band above the prompt that follows Azure DevOps and GitHub pull requests from review to deploy | Claude Code, with `az` or `gh` logged in |
+| [spec-driven-dev](skills/spec-driven-dev/README.md) | The spec-driven-dev skill as a plugin, to turn it on through `enabledPlugins`; the marketplace entry points at `skills/spec-driven-dev`, so there is one copy | Claude Code |
 
 ## Skills
 
@@ -39,7 +40,7 @@ npx skills add heidiks/agent-kit -s <skill> -a claude-code  # one skill, one age
 ```
 skills/<name>/SKILL.md              # one folder per skill, Agent Skills format
 plugins/<name>/                     # one folder per Claude Code plugin, with its own README
-.claude-plugin/marketplace.json     # lists the plugins for /plugin install
+.claude-plugin/marketplace.json     # lists the plugins for /plugin install; an entry may point at a skill (source ".")
 ```
 
 ## Adding something
