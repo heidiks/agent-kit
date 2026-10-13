@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -109,8 +110,26 @@ def collect(root):
     return groups
 
 
+def git(root, *args):
+    try:
+        result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def repo_name(root):
+    remote = git(root, "config", "--get", "remote.origin.url")
+    if remote:
+        return remote.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1].removesuffix(".git")
+    common_dir = git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common_dir:
+        return Path(common_dir).parent.name
+    return root.resolve().parent.parent.name
+
+
 def scope_name(index_dir, root):
-    return index_dir.name if index_dir != root else root.resolve().parent.parent.name
+    return index_dir.name if index_dir != root else repo_name(root)
 
 
 def main(argv=None):

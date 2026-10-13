@@ -1,8 +1,11 @@
 import contextlib
 import io
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import prd_index
 
@@ -106,6 +109,56 @@ class PrdIndexTest(unittest.TestCase):
         code, out, _ = self.run_index("--status")
         self.assertEqual(code, 0)
         self.assertIn("PRD-20261007-retry  In Progress  phase=implement  1/2 done", out)
+
+
+
+class RepoScopeTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name).resolve()
+        patcher = mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.base)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def checkout(self, name, git=True):
+        repo = self.base / name
+        write(repo / "docs" / "prd" / "PRD-20261007-retry" / "spec.md",
+              SPEC.format(id="PRD-20261007-retry", title="Retry", status="Draft", phase="spec"))
+        if git:
+            self.git(repo, "init", "-q")
+            self.git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "init")
+        return repo
+
+    def git(self, repo, *args):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+    def title(self, repo):
+        with contextlib.redirect_stdout(io.StringIO()):
+            prd_index.main(["--root", str(repo / "docs" / "prd")])
+        return (repo / "docs" / "prd" / "README.md").read_text().splitlines()[0]
+
+    def test_remote_name_wins_over_checkout_directory(self):
+        urls = ("https://dev.azure.com/acme/proj/_git/widgets", "git@github.com:acme/widgets.git",
+                "https://github.com/acme/widgets.git/")
+        for index, url in enumerate(urls):
+            with self.subTest(url=url):
+                repo = self.checkout(f"s{index}")
+                self.git(repo, "remote", "add", "origin", url)
+                self.assertEqual(self.title(repo), "# PRD Index — widgets")
+
+    def test_worktree_without_remote_uses_main_checkout_name(self):
+        repo = self.checkout("widgets")
+        self.git(repo, "worktree", "add", "-q", str(self.base / "widgets-t007"))
+        worktree = self.base / "widgets-t007"
+        write(worktree / "docs" / "prd" / "PRD-20261007-retry" / "spec.md",
+              SPEC.format(id="PRD-20261007-retry", title="Retry", status="Draft", phase="spec"))
+        self.assertEqual(self.title(worktree), "# PRD Index — widgets")
+
+    def test_without_git_uses_directory_name(self):
+        self.assertEqual(self.title(self.checkout("plain", git=False)), "# PRD Index — plain")
 
 
 if __name__ == "__main__":
