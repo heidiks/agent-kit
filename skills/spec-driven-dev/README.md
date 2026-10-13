@@ -10,6 +10,15 @@ An [Agent Skill](https://agentskills.io) that makes the agent define what and wh
 npx skills add heidiks/agent-kit -s spec-driven-dev -a claude-code   # or codex, cursor, gemini-cli, ...
 ```
 
+In Claude Code it is also a plugin, which `enabledPlugins` in a shared `settings.json` can turn on across machines:
+
+```
+/plugin marketplace add heidiks/agent-kit
+/plugin install spec-driven-dev@agent-kit
+```
+
+Pick one of the two: with both, Claude Code sees two skills with the same name and may pick either.
+
 Then ask the agent to "spec out" or "plan" a feature, or "where did we stop on PRD-...".
 
 ## Phases
