@@ -7,7 +7,7 @@ mode: full
 phase: implement
 created_at: 2026-10-15
 updated_at: 2026-10-15
-author: "heidiks@gmail.com"
+author: "heidiks"
 tasks: [TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007]
 ---
 
