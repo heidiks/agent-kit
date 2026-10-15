@@ -4,4 +4,4 @@
 
 | ID | Title | Author | Created | Status | Phase | Tasks |
 |---|---|---|---|---|---|---|
-| [PRD-20261015-prompt-stash](./PRD-20261015-prompt-stash/spec.md) | prompt-stash: a managed history for the native prompt stash | heidiks@gmail.com | 2026-10-15 | Draft | implement | 0/7 done: TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007 |
+| [PRD-20261015-prompt-stash](./PRD-20261015-prompt-stash/spec.md) | prompt-stash: a managed history for the native prompt stash | heidiks@gmail.com | 2026-10-15 | In Progress | implement | 0/7 done (1 in review): TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007 |
