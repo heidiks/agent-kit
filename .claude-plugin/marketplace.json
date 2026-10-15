@@ -19,6 +19,14 @@
       "skills": [
         "./skills/spec-driven-dev"
       ]
+    },
+    {
+      "name": "mcp-repo-catalog",
+      "source": {
+        "source": "github",
+        "repo": "heidiks/mcp-repo-catalog"
+      },
+      "description": "Azure DevOps and GitHub repository catalog as MCP tools, plus the enrich-catalog skill that fills in frameworks, monorepo flags and context per repo"
     }
   ]
 }
