@@ -26,7 +26,7 @@ status: In Progress
 mode: full
 phase: implement
 created_at: 2026-10-07
-author: "alice@example.com"
+author: "alice"
 tasks:
   - TASK-001
   - TASK-002

@@ -68,6 +68,7 @@ Description in precise language ("the system shall", "the user can").
 ## Overview
 
 > Mermaid diagram(s) of the flow and of what is new or changed. "Skipped" if the phase was skipped.
+> With an interface: a `### Interface` subsection with the mockup, or "Interface: no mockup (declined)".
 
 ```mermaid
 flowchart LR

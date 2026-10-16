@@ -37,7 +37,7 @@ PRD frontmatter (`mode: full` or `mode: lite`).
 |---|---|---|---|
 | 1 | Interview | Interview notes and decisions in the PRD | [references/interview.md](references/interview.md) |
 | 2 | Spec | `spec.md` filled from the interview | [references/spec.md](references/spec.md) |
-| 3 | Visual overview | Mermaid diagrams in `spec.md` | [references/visual-overview.md](references/visual-overview.md) |
+| 3 | Visual overview | Mermaid diagrams in `spec.md`, plus an interface mockup when the user wants one | [references/visual-overview.md](references/visual-overview.md) |
 | 4 | Tasks | `TASK-NNN-*.md` files and the task graph | [references/tasks.md](references/tasks.md) |
 | 5 | Implement | Code, one task at a time; a pull request per task, or per group of small related tasks | [references/implement.md](references/implement.md), [references/pull-requests.md](references/pull-requests.md) |
 | 6 | Done | Tasks `Done` once merged, PRD `Completed`, index updated | [references/implement.md](references/implement.md) |
