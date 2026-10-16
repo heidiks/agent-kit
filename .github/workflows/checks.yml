@@ -18,13 +18,20 @@ jobs:
           node-version: 22
       - name: Install Claude Code
         run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
-      - name: Validate marketplace and plugins
+      - name: Validate marketplace
+        run: claude plugin validate .
+      - name: Validate and test plugins, each on its claude-code-version or the default
         run: |
-          claude plugin validate .
-          for dir in plugins/*/; do claude plugin validate "$dir"; done
-      - name: Test plugins
-        run: |
-          for dir in plugins/*/; do claude plugin test "$dir"; done
+          for dir in plugins/*/; do
+            version="$(cat "${dir}claude-code-version" 2>/dev/null || echo "${CLAUDE_CODE_VERSION}")"
+            echo "::group::${dir} on Claude Code ${version}"
+            if [ "${version}" = "${CLAUDE_CODE_VERSION}" ]; then
+              claude plugin validate "$dir" && claude plugin test "$dir"
+            else
+              npx -y "@anthropic-ai/claude-code@${version}" plugin validate "$dir" && npx -y "@anthropic-ai/claude-code@${version}" plugin test "$dir"
+            fi
+            echo "::endgroup::"
+          done
 
   skills:
     runs-on: ubuntu-latest

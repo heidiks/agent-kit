@@ -25,7 +25,7 @@ Claude Code's native stash (ctrl+S) parks the draft in the prompt box so it is n
 - **Constraints:** keep the native ctrl+S as the main gesture and do not fight it; take little screen space, no extra line when pr-watch already draws a band; nothing the plugin does reaches the model's context.
 - **Approach:** capture through the native stash (A) plus a band hotkey (B); manage in a pane opened by `/stash` or from the band; with pr-watch, a compact chip in its band opens the same pane.
 - **Risks:** the engine raises the same `prompt.change` (`clear`) for a submit, a stash and a clear, and reports the box after the change, so capture tracks the draft through `prompt.edit` and waits briefly for a submit (see Decisions, confirmed in TASK-001); the mods API is young and may change (the weekly latest-Claude-Code workflow catches it); drafts are stored as plain JSON on disk, as Claude Code's own prompt history already is.
-- **Dependencies:** a small change in pr-watch to draw the chip; the Claude Code version CI pins (2.1.292) or newer.
+- **Dependencies:** a small change in pr-watch to draw the chip; Claude Code 2.1.300 or newer (see Decisions).
 
 ## Goals
 
@@ -123,7 +123,7 @@ The user can clear the items the pane shows, after confirming a question that st
 | Performance | Typing in the prompt box has no added delay; the store is written only when an item is added or removed, never per keystroke |
 | Security | Drafts stay in the plugin's local store; the plugin makes no network call and sends nothing to the model |
 | Observability | A failed store write shows a toast; nothing else is logged |
-| Compatibility | Claude Code 2.1.292 or newer; prompt-stash works without pr-watch and pr-watch works without prompt-stash; the terminal is the supported surface |
+| Compatibility | Claude Code 2.1.300 or newer, the first with `prompt.change`; prompt-stash works without pr-watch and pr-watch works without prompt-stash; the terminal is the supported surface |
 
 ---
 
@@ -189,6 +189,7 @@ sequenceDiagram
 | Track the draft from `prompt.edit` (the box after each edit) and `prompt.change` (history, plugin and engine writes); on `prompt.change` `clear`, hold the draft it emptied and record it unless a `prompt.submit` with the same text arrives within a short wait | Read the box on `clear`; drop the item when a submit follows | Measured on 2.1.301 (TASK-001): `clear` reports the box already empty; a plain submit raises `clear` about 10 ms before `prompt.submit`; with a stash pending, a submit raises no `clear`, the engine puts the stash back (`engine`) about 20 ms before `prompt.submit`; ctrl+S and ctrl+c raise `clear` with no submit. Dropping after the fact could delete an item the person recalled and then sent |
 | esc esc is not a capture source | Keep it in the requirements | On 2.1.301, esc esc with a draft in the box leaves the draft there (TASK-001) |
 | pr-watch reads `{ plugin: 'prompt-stash', key: 'count' }` from `$.state` with no `dependencies` entry | Declare prompt-stash as a dependency | `claude plugin validate` passes, listing the read under state of other plugins, not checked; at runtime the value reads as set (`{ value, version }`) when prompt-stash is loaded and as `{ version: 0 }` with no value when it is not (TASK-001) |
+| prompt-stash requires Claude Code 2.1.300; CI validates and tests each plugin on the version in its `claude-code-version` file (prompt-stash 2.1.300, pr-watch the 2.1.292 default) | Keep 2.1.292 and drop the passive capture; raise the CI pin for every plugin | `prompt.change` first ships in 2.1.300 (2.1.292 to 2.1.299 refuse the module), and passive capture through the native ctrl+S is the core of the plugin. A per-plugin version keeps pr-watch tested on its documented minimum. Found when CI failed on the stacked PRs |
 | Local store per machine (`$.store`) | A file at a configurable path (for example the synced vault) | A stash is work in progress on one machine, as the native one; no sync conflicts and drafts do not leave the machine |
 
 ---
