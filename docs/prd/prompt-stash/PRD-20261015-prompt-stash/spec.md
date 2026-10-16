@@ -55,6 +55,7 @@ The system shall add to the list every non-empty draft that leaves the prompt bo
 - When the person presses ctrl+S on the draft "a", "a" is the newest item, tagged with the current project.
 - When a draft is submitted, it is not added.
 - When the box is emptied while it holds only whitespace, nothing is added.
+- When the draft runs as a slash command or in bash mode (`!`), it is not added.
 - When the draft equals an item already in the list, no new item is added and the existing one becomes the newest.
 - When a 51st item is added, the oldest item is dropped.
 
@@ -187,6 +188,7 @@ sequenceDiagram
 | Recalling into a non-empty box swaps: the current draft goes to the list | Ask each time; append | Nothing is lost and no dialog; appending would mix the subjects the stash keeps apart |
 | Clear removes the items in the pane's current view, with their count in the question | Clear every item of every project | Matches what the person sees; clearing other projects' items unseen would surprise |
 | Track the draft from `prompt.edit` (the box after each edit) and `prompt.change` (history, plugin and engine writes); on `prompt.change` `clear`, hold the draft it emptied and record it unless a `prompt.submit` with the same text arrives within a short wait | Read the box on `clear`; drop the item when a submit follows | Measured on 2.1.301 (TASK-001): `clear` reports the box already empty; a plain submit raises `clear` about 10 ms before `prompt.submit`; with a stash pending, a submit raises no `clear`, the engine puts the stash back (`engine`) about 20 ms before `prompt.submit`; ctrl+S and ctrl+c raise `clear` with no submit. Dropping after the fact could delete an item the person recalled and then sent |
+| A slash command or a bash-mode draft (`!`) is not captured: a slash command drops the held draft on `command.run`; a draft starting with `!` is never held | Wait for the `session.append` row each one adds | Found in TASK-003 on 2.1.301: a slash command and a bash run empty the box with no `prompt.submit`; `/stash` itself appends no row, and a bash run appends its `<bash-input>` row only after the command ends, so a slow command outlasts any wait. A ctrl+S or ctrl+c on a `!` draft is not captured either; the band's stash hotkey (FR-002) still keeps it |
 | esc esc is not a capture source | Keep it in the requirements | On 2.1.301, esc esc with a draft in the box leaves the draft there (TASK-001) |
 | pr-watch reads `{ plugin: 'prompt-stash', key: 'count' }` from `$.state` with no `dependencies` entry | Declare prompt-stash as a dependency | `claude plugin validate` passes, listing the read under state of other plugins, not checked; at runtime the value reads as set (`{ value, version }`) when prompt-stash is loaded and as `{ version: 0 }` with no value when it is not (TASK-001) |
 | prompt-stash requires Claude Code 2.1.300; CI validates and tests each plugin on the version in its `claude-code-version` file (prompt-stash 2.1.300, pr-watch the 2.1.292 default) | Keep 2.1.292 and drop the passive capture; raise the CI pin for every plugin | `prompt.change` first ships in 2.1.300 (2.1.292 to 2.1.299 refuse the module), and passive capture through the native ctrl+S is the core of the plugin. A per-plugin version keeps pr-watch tested on its documented minimum. Found when CI failed on the stacked PRs |
@@ -207,7 +209,7 @@ sequenceDiagram
 |---|---|---|---|
 | [TASK-001](./TASK-001-confirm-engine-behavior.md) | Confirm the engine behavior the design relies on | In Review | https://github.com/heidiks/agent-kit/pull/37 |
 | [TASK-002](./TASK-002-plugin-scaffold-and-store.md) | Plugin scaffold and the item store | In Review | https://github.com/heidiks/agent-kit/pull/39 |
-| [TASK-003](./TASK-003-capture.md) | Passive capture and the stash action | Todo | - |
+| [TASK-003](./TASK-003-capture.md) | Passive capture and the stash action | In Review | https://github.com/heidiks/agent-kit/pull/42 |
 | [TASK-004](./TASK-004-pane-and-command.md) | The /stash command and the pane | In Review | https://github.com/heidiks/agent-kit/pull/41 |
 | [TASK-005](./TASK-005-own-band.md) | Own band and the published count | Todo | - |
 | [TASK-006](./TASK-006-pr-watch-chip.md) | Chip in pr-watch's band | Todo | - |

@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { StashItem, StashScope } from '../types'
+import { dropHeld, holdCleared, trackDraft } from './capture'
 import { addItem, changeItems, clearItems, itemsIn, loadItems, removeItem } from './store'
 import { renderPane } from './view'
 
@@ -14,6 +15,22 @@ const isClearing = atom({ plugin: 'prompt-stash', key: 'isClearing' } as const, 
 async function mutate($: EngineInterface, change: (list: StashItem[]) => StashItem[]): Promise<void> {
   const next = await changeItems($, change)
   await update($, items, () => next)
+}
+
+async function record($: EngineInterface, text: string): Promise<void> {
+  const project = await $.session.root()
+  const now = await $.clock.now()
+  await mutate($, list => addItem(list, text, project, now))
+}
+
+export async function stashDraft($: EngineInterface): Promise<void> {
+  const box = await $.prompt.read()
+  if (!box.text.trim()) {
+    $.ui.toast('Nothing to stash')
+    return
+  }
+  await record($, box.text)
+  await $.prompt.fill({ text: '' })
 }
 
 async function scopeProject($: EngineInterface): Promise<string | undefined> {
@@ -31,9 +48,7 @@ async function openPane($: EngineInterface): Promise<void> {
 async function recall($: EngineInterface, item: StashItem): Promise<void> {
   const box = await $.prompt.read()
   if (box.text.trim()) {
-    const project = await $.session.root()
-    const now = await $.clock.now()
-    await mutate($, list => addItem(list, box.text, project, now))
+    await record($, box.text)
   }
   await $.prompt.fill({ text: item.text })
   await $.ui.close({ id: PANE })
@@ -57,7 +72,33 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('prompt.edit', async ($, e, next) => {
+    const after = await next(e)
+    trackDraft(after.text)
+    return after
+  })
+
+  on('prompt.change', async ($, e, next) => {
+    if (e.origin.kind === 'clear') {
+      holdCleared($, text => record($, text))
+    } else {
+      trackDraft(e.text)
+    }
+    return next(e)
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    dropHeld()
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('command.run', async ($, e, next) => {
+    dropHeld()
+    return next(e)
+  })
+
   on('command.run', { command: 'stash' }, async $ => {
+    dropHeld()
     await openPane($)
     return {}
   })
