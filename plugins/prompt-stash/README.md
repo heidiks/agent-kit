@@ -29,9 +29,10 @@ Not kept: drafts you send, drafts that run as a slash command (`/...`) or in bas
 
 While the current project has stashed drafts, a line above the prompt shows them:
 
-```
-✎ 2 stashed  ⊕ stash draft  ≡ list
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/band-dark.svg">
+  <img alt="prompt-stash band above the Claude Code prompt: 2 stashed, stash draft and list buttons, list under the pointer" src="assets/band-light.svg">
+</picture>
 
 `⊕ stash draft` stashes the draft in the box, `≡ list` opens the list; click them, or focus the band with ctrl+x tab, Tab to one and press Enter. With nothing stashed, nothing is drawn.
 
@@ -40,6 +41,11 @@ With [pr-watch](../pr-watch/README.md) showing pull requests, prompt-stash draws
 ## List
 
 `/stash` opens the list, also while Claude is working; so do `≡ list` in the band and the pr-watch chip.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/list-dark.svg">
+  <img alt="prompt-stash list: this project filter, three stashed drafts with age and project, a remove mark on each" src="assets/list-light.svg">
+</picture>
 
 | Control | Action |
 |---|---|
