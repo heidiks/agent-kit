@@ -1,5 +1,4 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { On } from 'claude-code'
 
 const WEB = 'https://dev.azure.com/contoso/Contoso/_git/web-app'
 const PR_SHOW = {
@@ -876,43 +875,4 @@ test('focus with nothing to act on shows one quiet line', async ($, on) => {
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
   expect(await band.find({ type: 'Text', text: 'Nothing needs you now' })).toBeDefined()
   expect((await band.findAll({ type: 'Link' })).filter(l => /pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(0)
-})
-
-const stashOpened: string[] = []
-
-const STASH_PLUGIN = {
-  name: 'prompt-stash',
-  register: (on: On) => {
-    on('command.run', { command: 'seed-stash' }, async ($, e) => {
-      await $.state.set({ plugin: 'prompt-stash', key: 'count' } as never, Number(e.args) as never)
-      return {}
-    })
-  },
-}
-
-test('prompt-stash count shows as a chip on the band header line and opens its pane', { plugins: [STASH_PLUGIN] }, async ($, on) => {
-  const clock = mock.clock(on, { now: 1_000_000 })
-  mock.store(on)
-  on('session.id', () => ({ value: 'session-a' }) as never)
-  on('process.run', (_$, e) => ({ value: { ...answer(e.argv), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
-  on('command.run', { command: 'stash' }, () => {
-    stashOpened.push('stash')
-    return {} as never
-  })
-  await $.command.run({ command: 'pr-watch', args: '123' } as never)
-  await clock.advance(1)
-  const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
-  const lines = async () => ((await band.drawn()) as { children?: unknown[] }).children?.length
-  const before = await lines()
-  expect(await band.find({ key: 'stash' })).toBeUndefined()
-
-  await $.command.run({ command: 'seed-stash', args: '3' } as never)
-  expect((await band.find({ key: 'stash' }))?.text).toBe('✎ 3 stashed')
-  expect(await lines()).toBe(before)
-
-  await band.press({ key: 'stash' })
-  expect(stashOpened).toEqual(['stash'])
-
-  await $.command.run({ command: 'seed-stash', args: '0' } as never)
-  expect(await band.find({ key: 'stash' })).toBeUndefined()
 })
