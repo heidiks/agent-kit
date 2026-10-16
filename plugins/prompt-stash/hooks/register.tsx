@@ -4,17 +4,23 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { StashItem, StashScope } from '../types'
 import { dropHeld, holdCleared, trackDraft } from './capture'
 import { addItem, changeItems, clearItems, itemsIn, loadItems, removeItem } from './store'
-import { renderPane } from './view'
+import { renderBand, renderPane } from './view'
 
 const PANE = 'prompt-stash'
 const DEFAULT_WIDTH = 100
 const items = atom({ plugin: 'prompt-stash', key: 'items' } as const, [] as StashItem[])
 const scope = atom({ plugin: 'prompt-stash', key: 'scope' } as const, 'project' as StashScope)
 const isClearing = atom({ plugin: 'prompt-stash', key: 'isClearing' } as const, false)
+const count = atom({ plugin: 'prompt-stash', key: 'count' } as const, 0)
+
+async function publish($: EngineInterface, list: StashItem[]): Promise<void> {
+  const project = await $.session.root()
+  await update($, items, () => list)
+  await update($, count, () => itemsIn(list, project).length)
+}
 
 async function mutate($: EngineInterface, change: (list: StashItem[]) => StashItem[]): Promise<void> {
-  const next = await changeItems($, change)
-  await update($, items, () => next)
+  await publish($, await changeItems($, change))
 }
 
 async function record($: EngineInterface, text: string): Promise<void> {
@@ -67,8 +73,7 @@ export const register: Register = on => {
       description: 'Stashed prompt drafts: recall, remove or clear them without sending',
       immediate: true,
     })
-    const stored = await loadItems($)
-    await update($, items, () => stored)
+    await publish($, await loadItems($))
     return next(e)
   })
 
@@ -92,15 +97,25 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('command.run', async ($, e, next) => {
-    dropHeld()
-    return next(e)
-  })
-
   on('command.run', { command: 'stash' }, async $ => {
-    dropHeld()
     await openPane($)
     return {}
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const stashed = await read($, count)
+    if (e.props.hasSurvey || stashed === 0) {
+      return next(e)
+    }
+    const below = await next(e)
+    if (below.type !== 'engine') {
+      return below
+    }
+    return renderBand({
+      el: $.ui.resolve(e),
+      count: stashed,
+      actions: { stash: () => void stashDraft($), open: () => void openPane($) },
+    })
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) =>

@@ -5,8 +5,8 @@ export const SUBMIT_WAIT_MS = 300
 let draft = ''
 let held: Timer | undefined
 
-export function isBashMode(text: string): boolean {
-  return text.trimStart().startsWith('!')
+export function isCommand(text: string): boolean {
+  return /^[!/]/.test(text.trimStart())
 }
 
 export function trackDraft(text: string): void {
@@ -16,7 +16,7 @@ export function trackDraft(text: string): void {
 export function holdCleared($: EngineInterface, record: (text: string) => Promise<void>): void {
   const cleared = draft
   draft = ''
-  if (!cleared.trim() || isBashMode(cleared)) {
+  if (!cleared.trim() || isCommand(cleared)) {
     return
   }
   held?.cancel()
