@@ -46,7 +46,7 @@ plugins/<name>/                     # one folder per Claude Code plugin, with it
 
 ## Adding something
 
-- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin.
+- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin, on the Claude Code version in `plugins/<name>/claude-code-version` when the plugin needs a newer one than the default in `checks.yml`.
 - **Skill:** create `skills/<name>/SKILL.md` and add it to [Skills](#skills).
 - **Releasing a plugin:** bump `version` in its `plugin.json` and add a `## <version>` section to its `CHANGELOG.md` in the same PR. After the merge, the release workflow tags `<name>-v<version>` and publishes a GitHub release with that section; it fails if the section is missing. A plugin not yet in `marketplace.json` is skipped, so a new one can land over several PRs and is released by the one that lists it.
 
