@@ -1,6 +1,6 @@
 {
   "name": "prompt-stash",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Keeps every stashed prompt draft in a list you can recall, remove or clear, without sending it",
   "author": {
     "name": "heidiks"

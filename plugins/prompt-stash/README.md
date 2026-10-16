@@ -21,25 +21,25 @@ Every draft that leaves the prompt box without being sent:
 
 - **ctrl+S**, Claude Code's stash. It still puts the draft back after your next submit, as before; the list keeps a copy.
 - **ctrl+c** on a draft, so a draft cleared by mistake can be recalled.
-- **`s` in the band**, which stashes the draft in the box and empties it.
+- **`⊕ stash draft` in the band**, which stashes the draft in the box and empties it.
 
-Not kept: drafts you send, drafts that run as a slash command (`/...`) or in bash mode (`!...`), since running them also empties the box; use `s` in the band to keep one of those. Only the text is kept, not pasted images or other attachments. A draft identical to one in the list moves that one to the top instead of adding a copy, and the list keeps the newest 50.
+Not kept: drafts you send, drafts that run as a slash command (`/...`) or in bash mode (`!...`), since running them also empties the box; use `⊕ stash draft` in the band to keep one of those. Only the text is kept, not pasted images or other attachments. A draft identical to one in the list moves that one to the top instead of adding a copy, and the list keeps the newest 50.
 
 ## Band
 
 While the current project has stashed drafts, a line above the prompt shows them:
 
 ```
-2 stashed  s: stash draft  l: list
+✎ 2 stashed  ⊕ stash draft  ≡ list
 ```
 
-ctrl+x tab focuses the band; `s` stashes the draft in the box, `l` opens the list. With nothing stashed, nothing is drawn.
+`⊕ stash draft` stashes the draft in the box, `≡ list` opens the list; click them, or focus the band with ctrl+x tab, Tab to one and press Enter. With nothing stashed, nothing is drawn.
 
 With [pr-watch](../pr-watch/README.md) showing pull requests, prompt-stash draws no line of its own: `✎ N` sits on pr-watch's header line instead and opens the list.
 
 ## List
 
-`/stash` opens the list, also while Claude is working; so do `l` in the band and the pr-watch chip.
+`/stash` opens the list, also while Claude is working; so do `≡ list` in the band and the pr-watch chip.
 
 | Control | Action |
 |---|---|
