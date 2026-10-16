@@ -27,6 +27,7 @@ npx skills add heidiks/agent-kit -s <skill> -a claude-code  # one skill, one age
 | Plugin | What it does | Works with |
 |---|---|---|
 | [pr-watch](plugins/pr-watch/README.md) | Live band above the prompt that follows Azure DevOps and GitHub pull requests from review to deploy | Claude Code, with `az` or `gh` logged in |
+| [prompt-stash](plugins/prompt-stash/README.md) | Keeps every prompt draft you stash with ctrl+S in a list to recall, remove or clear without sending it; a chip in pr-watch's band when both are installed | Claude Code 2.1.300 or later |
 | [spec-driven-dev](skills/spec-driven-dev/README.md) | The spec-driven-dev skill as a plugin, to turn it on through `enabledPlugins`; the marketplace entry points at `skills/spec-driven-dev`, so there is one copy | Claude Code |
 | [mcp-repo-catalog](https://github.com/heidiks/mcp-repo-catalog) | Azure DevOps and GitHub repositories as MCP tools (search, read, clone across repos), plus the `enrich-catalog` skill; the code and releases live in its own repo, the marketplace entry points there | Claude Code, with the `mcp-repo-catalog` binary on `$PATH` and an Azure DevOps or GitHub token |
 
@@ -46,9 +47,9 @@ plugins/<name>/                     # one folder per Claude Code plugin, with it
 
 ## Adding something
 
-- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin.
+- **Plugin:** create `plugins/<name>/` with a `README.md`, add it to `.claude-plugin/marketplace.json` and to the [Plugins](#plugins) table. Check it with `claude plugin validate plugins/<name>` and `claude plugin test plugins/<name>`; CI runs both for every plugin, on the Claude Code version in `plugins/<name>/claude-code-version` when the plugin needs a newer one than the default in `checks.yml`.
 - **Skill:** create `skills/<name>/SKILL.md` and add it to [Skills](#skills).
-- **Releasing a plugin:** bump `version` in its `plugin.json` and add a `## <version>` section to its `CHANGELOG.md` in the same PR. After the merge, the release workflow tags `<name>-v<version>` and publishes a GitHub release with that section; it fails if the section is missing.
+- **Releasing a plugin:** bump `version` in its `plugin.json` and add a `## <version>` section to its `CHANGELOG.md` in the same PR. After the merge, the release workflow tags `<name>-v<version>` and publishes a GitHub release with that section; it fails if the section is missing. A plugin not yet in `marketplace.json` is skipped, so a new one can land over several PRs and is released by the one that lists it.
 
 ## License
 

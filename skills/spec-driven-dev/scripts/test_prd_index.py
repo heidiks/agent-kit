@@ -16,7 +16,7 @@ status: {status}
 mode: full
 phase: {phase}
 created_at: 2026-10-07
-author: "alice@example.com"
+author: "alice"
 tasks:
   - TASK-001
   - TASK-002
@@ -61,7 +61,7 @@ class PrdIndexTest(unittest.TestCase):
         self.assertEqual(code, 0)
         api = (self.root / "api" / "README.md").read_text()
         self.assertIn("# PRD Index — api", api)
-        self.assertIn("| [PRD-20261007-retry](./PRD-20261007-retry/spec.md) | Retry \\| backoff | alice@example.com | 2026-10-07 | In Progress | implement | 1/2 done: TASK-001, TASK-002 |", api)
+        self.assertIn("| [PRD-20261007-retry](./PRD-20261007-retry/spec.md) | Retry \\| backoff | alice | 2026-10-07 | In Progress | implement | 1/2 done: TASK-001, TASK-002 |", api)
         self.assertIn("| Draft | spec | none yet |", (self.root / "shared" / "README.md").read_text())
 
     def test_check_passes_after_write_and_fails_when_stale(self):

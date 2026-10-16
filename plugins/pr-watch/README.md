@@ -65,6 +65,7 @@ Inside a session you can also just ask Claude ("how do I watch a PR?", "why is m
 | `⌕ investigate` | Next to a failure: asks Claude to read the log and propose a fix |
 | `✓ mark … done` | On a merged, green PR of a spec task `In Review`: asks Claude to close the tasks |
 | `▤` / `⇕` / `⊞` / `⊖` | Layout / mode / overview / hide |
+| `✎ N stashed` | With the [prompt-stash](../prompt-stash/README.md) plugin installed: this project's stashed prompt drafts, on the header line; opens its list |
 
 ### Which PRs a session watches
 
