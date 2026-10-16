@@ -51,7 +51,7 @@ test('with items of other projects only, nothing is drawn', async ($, on) => {
 
 test('with items and nothing drawn below, one line shows the count and the two actions', async ($, on) => {
   const { band } = await start($, on, inX('a', 'b'))
-  expect(await band.find({ type: 'Text', text: '2 stashed' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: '✎ 2 stashed' })).toBeDefined()
   expect(await band.find({ key: 'stash' })).toBeDefined()
   expect(await band.find({ key: 'list' })).toBeDefined()
 })
@@ -62,17 +62,17 @@ test('when a plugin below draws the band, prompt-stash keeps it and draws no lin
   expect(await band.find({ key: 'stash' })).toBeUndefined()
 })
 
-test('the stash hotkey keeps the draft, empties the box without sending, and counts it', async ($, on) => {
+test('the stash button keeps the draft, empties the box without sending, and counts it', async ($, on) => {
   const { band, filled } = await start($, on, inX('a'), { box: 'b draft' })
   await band.press({ key: 'stash' })
   expect(filled).toEqual([''])
-  expect(await band.find({ type: 'Text', text: '2 stashed' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: '✎ 2 stashed' })).toBeDefined()
 })
 
-test('the stash hotkey on an empty box changes nothing and says so', async ($, on) => {
+test('the stash button on an empty box changes nothing and says so', async ($, on) => {
   const { band, filled, toasts } = await start($, on, inX('a'))
   await band.press({ key: 'stash' })
   expect(filled).toEqual([])
   expect(toasts.join(' ')).toContain('Nothing to stash')
-  expect(await band.find({ type: 'Text', text: '1 stashed' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: '✎ 1 stashed' })).toBeDefined()
 })

@@ -1,4 +1,4 @@
-import type { EngineInterface } from 'claude-code'
+import type { EngineInterface, TextHoverProps } from 'claude-code'
 
 import type { StashItem, StashScope } from '../types'
 
@@ -28,6 +28,8 @@ export type BandContext = {
 }
 
 const ROW_META_COLUMNS = 28
+
+const hoverOf = (scope: string): TextHoverProps => ({ scope, color: 'claude', dimColor: false, underline: true })
 
 export function ago(ms: number): string {
   const minutes = Math.floor(Math.max(0, ms) / 60_000)
@@ -97,9 +99,9 @@ export function renderBand(ctx: BandContext) {
 
   return (
     <Box flexDirection="row" gap={2}>
-      <Text dimColor>{`${ctx.count} stashed`}</Text>
-      <Button key="stash" plain hotkey="s" label="stash draft" onPress={ctx.actions.stash} />
-      <Button key="list" plain hotkey="l" label="list" onPress={ctx.actions.open} />
+      <Text dimColor>{`✎ ${ctx.count} stashed`}</Text>
+      <Button key="stash" plain dimColor hover={hoverOf('btn-stash')} label="⊕ stash draft" onPress={ctx.actions.stash} />
+      <Button key="list" plain dimColor hover={hoverOf('btn-list')} label="≡ list" onPress={ctx.actions.open} />
     </Box>
   )
 }

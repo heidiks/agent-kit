@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- The band reads like pr-watch's: `✎ N stashed  ⊕ stash draft  ≡ list`, icon buttons underlined in Claude's color on hover. The `s` and `l` letter keys go with the `s:`/`l:` labels; from the keyboard, ctrl+x tab, Tab and Enter.
+
 ## 0.3.1
 
 - `l` in the band, by key or click, opens the list again on terminals under 144 columns. The pane opened only after a state write, so Claude Code no longer tied it to the press and held it as a pane nobody asked for; it now opens first.
