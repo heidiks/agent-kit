@@ -27,7 +27,7 @@ Then ask the agent to "spec out" or "plan" a feature, or "where did we stop on P
 |---|---|---|
 | 1 | Interview | One question at a time until the problem, scope, constraints and risks are clear |
 | 2 | Spec | The PRD (`spec.md`), with every decision and its alternatives |
-| 3 | Visual overview | Mermaid diagrams of the flow and what changes, inside the PRD |
+| 3 | Visual overview | Mermaid diagrams of the flow and what changes, inside the PRD; when there is an interface, it asks whether you want a mockup (text or SVG) |
 | 4 | Tasks | One file per task, with acceptance criteria and a dependency graph |
 | 5 | Implement | One task at a time, only after an explicit go |
 | 6 | Done | Criteria verified, statuses closed, index regenerated |
@@ -65,7 +65,7 @@ python3 scripts/prd_index.py --status   # every PRD with its phase and task prog
 
 ## Evals
 
-`evals/` holds behavior checks run with `claude plugin eval`: the interview asks one question at a time, lite mode stops at a checkpoint before any code, and resuming reports the right phase and next step without editing files. Each case builds its own small repo with a scaffold script.
+`evals/` holds behavior checks run with `claude plugin eval`: the interview asks one question at a time, lite mode stops at a checkpoint before any code, resuming reports the right phase and next step without editing files, and the visual overview offers an interface mockup only when the work has an interface. Each case builds its own small repo with a scaffold script.
 
 ```bash
 claude plugin eval skills/spec-driven-dev --scaffold --allow-tools Write Edit Bash --max-cost-usd 5
