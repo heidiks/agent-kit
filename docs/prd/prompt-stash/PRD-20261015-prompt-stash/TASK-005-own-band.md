@@ -27,7 +27,7 @@ Publish the count of the current view in `$.state` and draw prompt-stash's one-l
 
 - [ ] With an empty list nothing is drawn above the prompt (FR-003)
 - [ ] With items and no pr-watch band, one line shows the count and the two actions (FR-003)
-- [ ] The stash hotkey stashes the current draft (FR-002)
+- [ ] The stash hotkey on `b` adds `b` and empties the box without sending; on an empty box it changes nothing and shows a toast (FR-002, moved from TASK-003)
 - [ ] With pr-watch drawing its band, prompt-stash draws no line (FR-003)
 
 ## Implementation Notes
