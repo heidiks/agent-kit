@@ -324,7 +324,12 @@ export function isStale(pr: WatchedPr, now: number): boolean {
 const URGENCY: Record<CheckState, number> = { fail: 0, pending: 1, warn: 2, running: 3, queued: 4, ok: 5, skipped: 6 }
 
 export function byUrgency(list: WatchedPr[]): WatchedPr[] {
-  const rank = (pr: WatchedPr) => (pr.isDone ? 10 : 0) + URGENCY[overallState(pr.checks, pr.phase)]
+  const rank = (pr: WatchedPr) => {
+    const state = URGENCY[overallState(pr.checks, pr.phase)]
+    if (pr.isDone) return 20 + state
+    const isWaitingAfterMerge = pr.phase === 'merged' && state >= URGENCY.running
+    return isWaitingAfterMerge ? 10 + state : state
+  }
   return list
     .map((pr, index) => ({ pr, index }))
     .sort((a, b) => rank(a.pr) - rank(b.pr) || (b.pr.createdAt ?? 0) - (a.pr.createdAt ?? 0) || a.index - b.index)

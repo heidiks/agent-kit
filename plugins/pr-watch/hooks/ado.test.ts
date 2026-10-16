@@ -224,6 +224,17 @@ test('byUrgency: within the same state the newest PR comes first, across repos',
   expect(byUrgency(list).map(p => p.id)).toEqual([1, 7, 19690, 300])
 })
 
+test('byUrgency: open PRs come before merged ones waiting for post-merge checks; post-merge failures stay on top', () => {
+  const list = [
+    watched({ id: 9, phase: 'merged', createdAt: 9_000, checks: [{ name: 'waiting for checks', state: 'queued' }] }),
+    watched({ id: 8, phase: 'merged', createdAt: 8_000, checks: [{ name: 'deploy', state: 'running' }] }),
+    watched({ id: 20, phase: 'gate', createdAt: 1_000, checks: [] }),
+    watched({ id: 7, phase: 'merged', createdAt: 7_000, checks: [{ name: 'deploy', state: 'fail' }] }),
+    watched({ id: 6, phase: 'merged', createdAt: 6_000, checks: [{ name: 'deploy', state: 'ok' }], isDone: true }),
+  ]
+  expect(byUrgency(list).map(p => p.id)).toEqual([7, 20, 8, 9, 6])
+})
+
 test('applyCheck: history records only real changes, capped', () => {
   const state = (s: 'fail' | 'ok') => ({ phase: 'gate' as const, checks: [{ name: 'build', state: s }], isFailed: s === 'fail', isDone: false })
   let pr = watched({ phase: 'loading' })

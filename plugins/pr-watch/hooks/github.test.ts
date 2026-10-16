@@ -89,6 +89,13 @@ test('post-merge: external app check runs and statuses, done after settling', ()
   expect(githubMergedVerdict([], [], 60_000).checks[0]?.name).toBe('waiting for checks')
 })
 
+test('post-merge: a repo without checks finishes after 15 minutes, not 6 hours', () => {
+  const waiting = githubMergedVerdict([], [], 14 * 60_000)
+  expect([waiting.checks[0]?.name, waiting.isDone]).toEqual(['waiting for checks', false])
+  const given = githubMergedVerdict([], [], 16 * 60_000)
+  expect([given.checks[0]?.name, given.checks[0]?.state, given.isDone]).toEqual(['no checks found', 'skipped', true])
+})
+
 test('reason: first failure annotation, with its file', () => {
   expect(annotationReason([
     { annotation_level: 'warning', message: 'deprecado' },
