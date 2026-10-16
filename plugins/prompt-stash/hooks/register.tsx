@@ -97,6 +97,11 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  on('ui.press', { plugin: 'pr-watch', element: 'stash' }, async $ => {
+    await openPane($)
+    return { element: 'stash' }
+  })
+
   on('command.run', { command: 'stash' }, async $ => {
     await openPane($)
     return {}

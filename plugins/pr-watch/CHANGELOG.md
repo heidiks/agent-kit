@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+
+- With the prompt-stash plugin installed, `✎ N stashed` on the band's header line counts this project's stashed prompt drafts and opens its list; no extra line, and nothing changes without it.
+
 ## 0.3.4
 
 - `investigate` keeps the CI's failure text in a fenced block marked as untrusted data, so text from a PR's build output is not read as instructions.
