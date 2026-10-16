@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.8
+
+- The prompt-stash chip is back on the band's header line, shorter (`✎ N`), so pressing it opens the stashed prompt list again.
+
 ## 0.3.7
 
 - The `✎ N stashed` chip is gone from the band: prompt-stash 0.2.0 shows its count at the end of the prompt's hint line instead, so pr-watch no longer reads anything from it.
