@@ -73,8 +73,8 @@ export function renderPane(ctx: PaneContext) {
 
   return (
     <Box flexDirection="column">
+      <Text bold>{`Stashed prompts (${count})`}</Text>
       <Box flexDirection="row" gap={1}>
-        <Text bold>{`Stashed prompts (${count})`}</Text>
         {scopeButton('project', 'this project')}
         {scopeButton('all', 'all projects')}
         {clearControl}
