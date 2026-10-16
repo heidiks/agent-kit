@@ -3,7 +3,7 @@ id: TASK-002
 prd_id: PRD-20261015-prompt-stash
 title: "Plugin scaffold and the item store"
 component: prompt-stash
-status: In Progress
+status: In Review
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
@@ -12,7 +12,8 @@ blocked_reason: ""
 cancelled_reason: ""
 depends_on: []
 branch: task/PRD-20261015-prompt-stash/TASK-002
-prs: []
+prs:
+  - https://github.com/heidiks/agent-kit/pull/39
 ---
 
 # TASK-002 — Plugin scaffold and the item store
@@ -61,3 +62,4 @@ plugins/prompt-stash/types/index.d.ts
 | 2026-10-15 | Created |
 | 2026-10-15 | Started, stacked on TASK-001 (#37) |
 | 2026-10-15 | Store as pure functions over the list plus `changeItems`, which re-reads `$.store` before each write so a second session's items are not dropped; 6 tests, validate ok. No type-check: no tsc here and CI runs none |
+| 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/39 |

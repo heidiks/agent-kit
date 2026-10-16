@@ -205,7 +205,7 @@ sequenceDiagram
 | Task | Title | Status | Pull request |
 |---|---|---|---|
 | [TASK-001](./TASK-001-confirm-engine-behavior.md) | Confirm the engine behavior the design relies on | In Review | https://github.com/heidiks/agent-kit/pull/37 |
-| [TASK-002](./TASK-002-plugin-scaffold-and-store.md) | Plugin scaffold and the item store | Todo | - |
+| [TASK-002](./TASK-002-plugin-scaffold-and-store.md) | Plugin scaffold and the item store | In Review | https://github.com/heidiks/agent-kit/pull/39 |
 | [TASK-003](./TASK-003-capture.md) | Passive capture and the stash action | Todo | - |
 | [TASK-004](./TASK-004-pane-and-command.md) | The /stash command and the pane | Todo | - |
 | [TASK-005](./TASK-005-own-band.md) | Own band and the published count | Todo | - |
