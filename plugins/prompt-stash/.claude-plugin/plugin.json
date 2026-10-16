@@ -1,0 +1,11 @@
+{
+  "name": "prompt-stash",
+  "version": "0.1.0",
+  "description": "Keeps every stashed prompt draft in a list you can recall, remove or clear, without sending it",
+  "author": {
+    "name": "heidiks"
+  },
+  "homepage": "https://github.com/heidiks/agent-kit",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

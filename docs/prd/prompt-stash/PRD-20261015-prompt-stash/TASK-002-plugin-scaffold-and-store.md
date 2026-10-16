@@ -3,10 +3,10 @@ id: TASK-002
 prd_id: PRD-20261015-prompt-stash
 title: "Plugin scaffold and the item store"
 component: prompt-stash
-status: Todo
+status: In Progress
 created_at: 2026-10-15
 updated_at: 2026-10-15
-started_at: ""
+started_at: 2026-10-15
 completed_at: ""
 blocked_reason: ""
 cancelled_reason: ""
@@ -25,12 +25,12 @@ Create `plugins/prompt-stash/` with its manifest, hooks module entry, `$.state` 
 
 ## Acceptance Criteria
 
-- [ ] Adding a whitespace-only text changes nothing (FR-001)
-- [ ] Adding a text equal to an existing item moves it to the top without a new item (FR-001)
-- [ ] The 51st item drops the oldest (FR-001)
-- [ ] Removing one item leaves the others unchanged (FR-007)
-- [ ] Clearing with a project filter removes only that project's items (FR-008)
-- [ ] `claude plugin validate plugins/prompt-stash` and `claude plugin test plugins/prompt-stash` pass
+- [x] Adding a whitespace-only text changes nothing (FR-001)
+- [x] Adding a text equal to an existing item moves it to the top without a new item (FR-001)
+- [x] The 51st item drops the oldest (FR-001)
+- [x] Removing one item leaves the others unchanged (FR-007)
+- [x] Clearing with a project filter removes only that project's items (FR-008)
+- [x] `claude plugin validate plugins/prompt-stash` and `claude plugin test plugins/prompt-stash` pass
 
 ## Implementation Notes
 
@@ -59,3 +59,5 @@ plugins/prompt-stash/types/index.d.ts
 | Date | Note |
 |---|---|
 | 2026-10-15 | Created |
+| 2026-10-15 | Started, stacked on TASK-001 (#37) |
+| 2026-10-15 | Store as pure functions over the list plus `changeItems`, which re-reads `$.store` before each write so a second session's items are not dropped; 6 tests, validate ok. No type-check: no tsc here and CI runs none |
