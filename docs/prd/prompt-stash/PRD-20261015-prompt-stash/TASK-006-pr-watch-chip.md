@@ -3,7 +3,7 @@ id: TASK-006
 prd_id: PRD-20261015-prompt-stash
 title: "Chip in pr-watch's band"
 component: prompt-stash
-status: In Progress
+status: In Review
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
@@ -12,7 +12,8 @@ blocked_reason: ""
 cancelled_reason: ""
 depends_on: [TASK-001, TASK-005]
 branch: task/PRD-20261015-prompt-stash/TASK-006
-prs: []
+prs:
+  - https://github.com/heidiks/agent-kit/pull/44
 ---
 
 # TASK-006 — Chip in pr-watch's band
@@ -60,3 +61,4 @@ plugins/pr-watch/README.md
 | 2026-10-15 | Started, stacked on TASK-005 (#43) |
 | 2026-10-15 | pr-watch reads `prompt-stash.count` with no dependency (`{ version: 0 }` without it) and draws `✎ N stashed` on the header line in full, compact, focus and mini; the press runs `/stash` through `$.command.run`. 78 pr-watch tests pass, README images unchanged |
 | 2026-10-15 | Real session on 2.1.301 with both plugins from the branch (installed pr-watch disabled): after ctrl+S the header read `✎ 1 stashed` with no extra line; focusing the band and pressing the chip opened the prompt-stash pane |
+| 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/44 |
