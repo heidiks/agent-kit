@@ -13,6 +13,11 @@
       "description": "Live band above the Claude Code prompt that tracks Azure DevOps and GitHub pull requests from gate to deploy"
     },
     {
+      "name": "prompt-stash",
+      "source": "./plugins/prompt-stash",
+      "description": "Keeps every prompt draft you stash (ctrl+S) in a list to recall, remove or clear, without sending it"
+    },
+    {
       "name": "spec-driven-dev",
       "source": ".",
       "description": "The spec-driven-dev skill as a Claude Code plugin: interview, spec, visual overview and tasks before any code, with a checkpoint between phases",
