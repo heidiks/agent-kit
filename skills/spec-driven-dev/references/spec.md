@@ -6,7 +6,8 @@ Turn the interview into the PRD (`spec.md`), using [assets/prd-template.md](../a
 
 1. If phase 1 was skipped, create the PRD folder now (see [layout.md](layout.md)) and
    ask only the questions needed to fill Context, Goals and Non-goals.
-2. Fill `author` from `git config user.email`; ask the user if it is not set.
+2. Fill `author` with the user's handle on the repo's platform (`gh api user -q .login` on
+   GitHub), never an email; ask the user if it cannot be found.
 3. Fill every section of the template from the interview notes. Write "None" in a
    section that does not apply, never leave it empty.
 4. Requirements use precise language ("the system shall", "the user can"), each with
