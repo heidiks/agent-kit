@@ -3,10 +3,10 @@ id: TASK-006
 prd_id: PRD-20261015-prompt-stash
 title: "Chip in pr-watch's band"
 component: prompt-stash
-status: Todo
+status: In Progress
 created_at: 2026-10-15
 updated_at: 2026-10-15
-started_at: ""
+started_at: 2026-10-15
 completed_at: ""
 blocked_reason: ""
 cancelled_reason: ""
@@ -25,10 +25,10 @@ In pr-watch, read prompt-stash's count the way TASK-001 confirmed and draw a com
 
 ## Acceptance Criteria
 
-- [ ] With pull requests and three items, the band has the same number of lines as without the chip (FR-004)
-- [ ] Pressing the chip opens the prompt-stash pane (FR-004)
-- [ ] Without prompt-stash, or with its list empty, pr-watch's existing tests pass unchanged (FR-004)
-- [ ] pr-watch `plugin.json` version bumped with a matching CHANGELOG section
+- [x] With pull requests and three items, the band has the same number of lines as without the chip (FR-004)
+- [x] Pressing the chip opens the prompt-stash pane (FR-004)
+- [x] Without prompt-stash, or with its list empty, pr-watch's existing tests pass unchanged (FR-004)
+- [x] pr-watch `plugin.json` version bumped with a matching CHANGELOG section
 
 ## Implementation Notes
 
@@ -57,3 +57,6 @@ plugins/pr-watch/README.md
 | Date | Note |
 |---|---|
 | 2026-10-15 | Created |
+| 2026-10-15 | Started, stacked on TASK-005 (#43) |
+| 2026-10-15 | pr-watch reads `prompt-stash.count` with no dependency (`{ version: 0 }` without it) and draws `✎ N stashed` on the header line in full, compact, focus and mini; the press runs `/stash` through `$.command.run`. 78 pr-watch tests pass, README images unchanged |
+| 2026-10-15 | Real session on 2.1.301 with both plugins from the branch (installed pr-watch disabled): after ctrl+S the header read `✎ 1 stashed` with no extra line; focusing the band and pressing the chip opened the prompt-stash pane |

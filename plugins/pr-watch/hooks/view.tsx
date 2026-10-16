@@ -34,6 +34,7 @@ export type BandActions = {
   investigate: (pr: WatchedPr, item: Check) => void
   markDone: (links: TaskLink[], pr: WatchedPr) => void
   watchUrl: (url: string) => void
+  openStash: () => void
 }
 
 export type BandContext = {
@@ -53,6 +54,7 @@ export type BandContext = {
   width: number
   currentSession: string
   plans: PlanInfo[]
+  stashed: number
   actions: BandActions
 }
 
@@ -507,6 +509,10 @@ export function renderBand(ctx: BandContext) {
     <Button key="hide" plain dimColor={buttonDim} hover={hoverOf('btn-hide')} label="⊖ hide" onPress={actions.hide} />,
   ]
 
+  const stashChip = ctx.stashed > 0 && (
+    <Button key="stash" plain dimColor={buttonDim} hover={hoverOf('btn-stash')} label={`✎ ${ctx.stashed} stashed`} onPress={actions.openStash} />
+  )
+
   if (ctx.mode === 'mini' && !ctx.isPane) {
     const top = ordered.find(p => !p.isDone) ?? ordered[0]
     const topState = top ? overallState(top.checks, top.phase) : 'ok'
@@ -530,6 +536,7 @@ export function renderBand(ctx: BandContext) {
           </Box>
         )}
         <Box flexGrow={1} />
+        {stashChip}
         {focusButton}
         {modeButtons}
       </Box>
@@ -546,6 +553,7 @@ export function renderBand(ctx: BandContext) {
         <Text color={hasStale ? 'warning' : faint}>{`${hasStale ? '! ' : ''}updated ${ago(now - lastChecked)} ago`}</Text>
       )}
       <Box flexGrow={1} />
+      {stashChip}
       {!ctx.isPane && focusButton}
       {isFocused ? (
         <Button key="overview" plain dimColor={buttonDim} hover={hoverOf('btn-overview')} label="⊞ overview" onPress={actions.openOverview} />
