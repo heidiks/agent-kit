@@ -72,7 +72,6 @@ test('a draft that ran as a slash command is not recorded', async ($, on) => {
   const { clock, listed } = await start($, on)
   await type($, '/stash')
   await cleared($)
-  await $.command.run({ command: 'stash', args: '' } as never)
   await clock.advance(SUBMIT_WAIT_MS)
   expect(await listed()).toEqual([])
 })

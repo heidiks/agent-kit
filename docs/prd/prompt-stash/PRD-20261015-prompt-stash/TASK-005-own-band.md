@@ -3,10 +3,10 @@ id: TASK-005
 prd_id: PRD-20261015-prompt-stash
 title: "Own band and the published count"
 component: prompt-stash
-status: Todo
+status: In Progress
 created_at: 2026-10-15
 updated_at: 2026-10-15
-started_at: ""
+started_at: 2026-10-15
 completed_at: ""
 blocked_reason: ""
 cancelled_reason: ""
@@ -25,10 +25,10 @@ Publish the count of the current view in `$.state` and draw prompt-stash's one-l
 
 ## Acceptance Criteria
 
-- [ ] With an empty list nothing is drawn above the prompt (FR-003)
-- [ ] With items and no pr-watch band, one line shows the count and the two actions (FR-003)
-- [ ] The stash hotkey on `b` adds `b` and empties the box without sending; on an empty box it changes nothing and shows a toast (FR-002, moved from TASK-003)
-- [ ] With pr-watch drawing its band, prompt-stash draws no line (FR-003)
+- [x] With an empty list nothing is drawn above the prompt (FR-003)
+- [x] With items and no pr-watch band, one line shows the count and the two actions (FR-003)
+- [x] The stash hotkey on `b` adds `b` and empties the box without sending; on an empty box it changes nothing and shows a toast (FR-002, moved from TASK-003)
+- [x] With pr-watch drawing its band, prompt-stash draws no line (FR-003)
 
 ## Implementation Notes
 
@@ -57,3 +57,6 @@ plugins/prompt-stash/hooks/band.test.ts
 | Date | Note |
 |---|---|
 | 2026-10-15 | Created |
+| 2026-10-15 | Started, stacked on TASK-003 (#42) |
+| 2026-10-15 | `count` (items of the session's project) published on session start and after every change. The band calls `next(e)` and draws its line only when nothing below drew (`{ type: 'engine' }`, measured with a probe). Hotkeys `s` (stash draft) and `l` (list). 25 tests pass |
+| 2026-10-15 | Real session on 2.1.301: after ctrl+S the band showed `1 stashed  s: stash draft  l: list`; ctrl+x tab then `s` stashed the draft and emptied the box (`2 stashed`); with pr-watch drawing its band (`/pr-watch` on a PR), prompt-stash drew no line. The TASK-003 `command.run` hook made every command's output read `prompt-stash+pr-watch:`; replaced by never holding a `/` draft, after which `/pr-watch help` read `pr-watch:` and neither command was captured |

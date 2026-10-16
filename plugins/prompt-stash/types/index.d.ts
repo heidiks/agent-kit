@@ -8,6 +8,7 @@ declare module 'claude-code' {
       items: StashItem[]
       scope: StashScope
       isClearing: boolean
+      count: number
     }
   }
 }

@@ -21,6 +21,12 @@ export type PaneContext = {
   actions: PaneActions
 }
 
+export type BandContext = {
+  el: ReturnType<EngineInterface['ui']['resolve']>
+  count: number
+  actions: { stash: () => void; open: () => void }
+}
+
 const ROW_META_COLUMNS = 28
 
 export function ago(ms: number): string {
@@ -82,6 +88,18 @@ export function renderPane(ctx: PaneContext) {
           <Button key={`rm-${item.id}`} plain label="×" onPress={() => ctx.actions.remove(item.id)} />
         </Box>
       ))}
+    </Box>
+  )
+}
+
+export function renderBand(ctx: BandContext) {
+  const { Box, Button, Text } = ctx.el
+
+  return (
+    <Box flexDirection="row" gap={2}>
+      <Text dimColor>{`${ctx.count} stashed`}</Text>
+      <Button key="stash" plain hotkey="s" label="stash draft" onPress={ctx.actions.stash} />
+      <Button key="list" plain hotkey="l" label="list" onPress={ctx.actions.open} />
     </Box>
   )
 }
