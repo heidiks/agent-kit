@@ -3,11 +3,11 @@ id: TASK-004
 prd_id: PRD-20261015-prompt-stash
 title: "The /stash command and the pane"
 component: prompt-stash
-status: In Review
+status: Done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
-completed_at: ""
+completed_at: 2026-10-15
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: [TASK-002]
@@ -61,3 +61,4 @@ plugins/prompt-stash/hooks/view.test.ts
 | 2026-10-15 | Started, stacked on TASK-002 (#39) |
 | 2026-10-15 | `/stash` registered `immediate` so it opens while a turn runs. Recall closes the pane, back to the prompt. 13 tests pass. In a real 2.1.301 session with a probe on `session.append`: `/stash` opened the pane docked beside the transcript and appended no row; a control prompt appended its rows |
 | 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/41 |
+| 2026-10-15 | Done: #41 merged (squash) |

@@ -3,11 +3,11 @@ id: TASK-001
 prd_id: PRD-20261015-prompt-stash
 title: "Confirm the engine behavior the design relies on"
 component: prompt-stash
-status: In Review
+status: Done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
-completed_at: ""
+completed_at: 2026-10-15
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: []
@@ -63,3 +63,4 @@ docs/prd/prompt-stash/PRD-20261015-prompt-stash/spec.md
 | 2026-10-15 | Started: probe mods driven in tmux on Claude Code 2.1.301 |
 | 2026-10-15 | Probes probe-a (event log) and probe-b (reads probe-a's state) loaded with `--plugin-dir` in a tmux session on 2.1.301, haiku. Results recorded in the PRD Decisions; esc esc does not empty the box, so it left FR-001 and TASK-003 |
 | 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/37 |
+| 2026-10-15 | Done: #37 merged (squash) |

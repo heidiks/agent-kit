@@ -3,11 +3,11 @@ id: TASK-002
 prd_id: PRD-20261015-prompt-stash
 title: "Plugin scaffold and the item store"
 component: prompt-stash
-status: In Review
+status: Done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
-completed_at: ""
+completed_at: 2026-10-15
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: []
@@ -69,3 +69,4 @@ README.md
 | 2026-10-15 | Store as pure functions over the list plus `changeItems`, which re-reads `$.store` before each write so a second session's items are not dropped; 6 tests, validate ok. No type-check: no tsc here and CI runs none |
 | 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/39 |
 | 2026-10-15 | CI failed: it ran Claude Code 2.1.292, where `prompt.change` (used from TASK-003) does not exist and `$` cannot be passed across an import. prompt-stash now requires 2.1.300 (`claude-code-version`), and `checks.yml` validates and tests each plugin on its own version. Checked locally with 2.1.292, 2.1.295, 2.1.299 and 2.1.300 |
+| 2026-10-15 | Done: #39 merged (squash) |

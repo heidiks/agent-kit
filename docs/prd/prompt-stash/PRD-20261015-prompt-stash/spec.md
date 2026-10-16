@@ -2,9 +2,9 @@
 id: PRD-20261015-prompt-stash
 title: "prompt-stash: a managed history for the native prompt stash"
 component: prompt-stash
-status: In Progress
+status: Completed
 mode: full
-phase: implement
+phase: done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 author: "heidiks"
@@ -29,11 +29,11 @@ Claude Code's native stash (ctrl+S) parks the draft in the prompt box so it is n
 
 ## Goals
 
-- [ ] Three drafts stashed in a row with ctrl+S are all in the pane, newest first, each recallable in any order without being sent.
-- [ ] A draft cleared with ctrl+c is in the pane as well.
-- [ ] With pr-watch showing pull requests, stashing does not add a line above the prompt.
-- [ ] With an empty list, prompt-stash draws nothing above the prompt.
-- [ ] No action of the plugin adds a row the model reads to the conversation.
+- [x] Three drafts stashed in a row with ctrl+S are all in the pane, newest first, each recallable in any order without being sent.
+- [x] A draft cleared with ctrl+c is in the pane as well.
+- [x] With pr-watch showing pull requests, stashing does not add a line above the prompt.
+- [x] With an empty list, prompt-stash draws nothing above the prompt.
+- [x] No action of the plugin adds a row the model reads to the conversation.
 
 ## Non-goals
 
@@ -208,13 +208,13 @@ sequenceDiagram
 
 | Task | Title | Status | Pull request |
 |---|---|---|---|
-| [TASK-001](./TASK-001-confirm-engine-behavior.md) | Confirm the engine behavior the design relies on | In Review | https://github.com/heidiks/agent-kit/pull/37 |
-| [TASK-002](./TASK-002-plugin-scaffold-and-store.md) | Plugin scaffold and the item store | In Review | https://github.com/heidiks/agent-kit/pull/39 |
-| [TASK-003](./TASK-003-capture.md) | Passive capture and the stash action | In Review | https://github.com/heidiks/agent-kit/pull/42 |
-| [TASK-004](./TASK-004-pane-and-command.md) | The /stash command and the pane | In Review | https://github.com/heidiks/agent-kit/pull/41 |
-| [TASK-005](./TASK-005-own-band.md) | Own band and the published count | In Review | https://github.com/heidiks/agent-kit/pull/43 |
-| [TASK-006](./TASK-006-pr-watch-chip.md) | Chip in pr-watch's band | In Review | https://github.com/heidiks/agent-kit/pull/44 |
-| [TASK-007](./TASK-007-docs-and-release.md) | Docs and first release | In Review | https://github.com/heidiks/agent-kit/pull/46 |
+| [TASK-001](./TASK-001-confirm-engine-behavior.md) | Confirm the engine behavior the design relies on | Done | https://github.com/heidiks/agent-kit/pull/37 |
+| [TASK-002](./TASK-002-plugin-scaffold-and-store.md) | Plugin scaffold and the item store | Done | https://github.com/heidiks/agent-kit/pull/39 |
+| [TASK-003](./TASK-003-capture.md) | Passive capture and the stash action | Done | https://github.com/heidiks/agent-kit/pull/42 |
+| [TASK-004](./TASK-004-pane-and-command.md) | The /stash command and the pane | Done | https://github.com/heidiks/agent-kit/pull/41 |
+| [TASK-005](./TASK-005-own-band.md) | Own band and the published count | Done | https://github.com/heidiks/agent-kit/pull/43 |
+| [TASK-006](./TASK-006-pr-watch-chip.md) | Chip in pr-watch's band | Done | https://github.com/heidiks/agent-kit/pull/44 |
+| [TASK-007](./TASK-007-docs-and-release.md) | Docs and first release | Done | https://github.com/heidiks/agent-kit/pull/46 |
 
 ```mermaid
 flowchart LR
