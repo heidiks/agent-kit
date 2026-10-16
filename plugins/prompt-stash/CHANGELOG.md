@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- `l` in the band, by key or click, opens the list again on terminals under 144 columns. The pane opened only after a state write, so Claude Code no longer tied it to the press and held it as a pane nobody asked for; it now opens first.
+
 ## 0.3.0
 
 - The menu is back: the hint-line count of 0.2.0 was not clickable, and a button cannot sit on that line without replacing Claude Code's own. Without pr-watch, the band line `N stashed  s: stash draft  l: list` returns; with pr-watch, the chip on its header line, now `✎ N`, opens the list. The count leaves the hint line.

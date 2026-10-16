@@ -44,8 +44,8 @@ async function scopeProject($: EngineInterface): Promise<string | undefined> {
 }
 
 async function openPane($: EngineInterface): Promise<void> {
-  await update($, isClearing, () => false)
   const opened = await $.ui.open({ id: PANE, title: 'Stashed prompts', focus: true, closeOnEscape: true, rows: 16 }).catch(() => undefined)
+  await update($, isClearing, () => false)
   if (!opened?.isPlaced) {
     $.ui.toast('Could not open the stashed prompts here')
   }
