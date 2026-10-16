@@ -3,11 +3,11 @@ id: TASK-005
 prd_id: PRD-20261015-prompt-stash
 title: "Own band and the published count"
 component: prompt-stash
-status: In Review
+status: Done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
-completed_at: ""
+completed_at: 2026-10-15
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: [TASK-002, TASK-003]
@@ -62,3 +62,4 @@ plugins/prompt-stash/hooks/band.test.ts
 | 2026-10-15 | `count` (items of the session's project) published on session start and after every change. The band calls `next(e)` and draws its line only when nothing below drew (`{ type: 'engine' }`, measured with a probe). Hotkeys `s` (stash draft) and `l` (list). 25 tests pass |
 | 2026-10-15 | Real session on 2.1.301: after ctrl+S the band showed `1 stashed  s: stash draft  l: list`; ctrl+x tab then `s` stashed the draft and emptied the box (`2 stashed`); with pr-watch drawing its band (`/pr-watch` on a PR), prompt-stash drew no line. The TASK-003 `command.run` hook made every command's output read `prompt-stash+pr-watch:`; replaced by never holding a `/` draft, after which `/pr-watch help` read `pr-watch:` and neither command was captured |
 | 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/43 |
+| 2026-10-15 | Done: #43 merged (squash) |

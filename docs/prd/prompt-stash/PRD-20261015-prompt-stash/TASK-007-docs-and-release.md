@@ -3,11 +3,11 @@ id: TASK-007
 prd_id: PRD-20261015-prompt-stash
 title: "Docs and first release"
 component: prompt-stash
-status: In Review
+status: Done
 created_at: 2026-10-15
 updated_at: 2026-10-15
 started_at: 2026-10-15
-completed_at: ""
+completed_at: 2026-10-15
 blocked_reason: ""
 cancelled_reason: ""
 depends_on: [TASK-003, TASK-004, TASK-005, TASK-006]
@@ -61,3 +61,4 @@ README.md
 | 2026-10-15 | Started, stacked on TASK-006 (#44) |
 | 2026-10-15 | README (what is kept and not, band, chip, list, Claude Code 2.1.300, privacy), CHANGELOG 0.1.0, marketplace entry after pr-watch, agent-kit README row, and pr-watch's README row now links prompt-stash. `claude plugin validate .` passes; the release workflow's notes extraction yields the 0.1.0 section for `prompt-stash-v0.1.0` |
 | 2026-10-15 | In review: https://github.com/heidiks/agent-kit/pull/46 |
+| 2026-10-15 | Done: #46 merged (squash) |
