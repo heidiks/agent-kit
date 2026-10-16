@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "plugins/*/.claude-plugin/plugin.json"
+      - ".claude-plugin/marketplace.json"
   workflow_dispatch:
 
 permissions:
@@ -26,6 +27,10 @@ jobs:
             dir="${manifest%/.claude-plugin/plugin.json}"
             name="$(jq -r .name "$manifest")"
             version="$(jq -r .version "$manifest")"
+            if ! jq -e --arg name "${name}" 'any(.plugins[]; .name == $name)' .claude-plugin/marketplace.json >/dev/null; then
+              echo "${name}: not in the marketplace yet"
+              continue
+            fi
             tag="${name}-v${version}"
             if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
               echo "${tag}: already released"
