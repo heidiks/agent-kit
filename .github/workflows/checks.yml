@@ -56,3 +56,8 @@ jobs:
           python3 plugins/pr-watch/assets/animate.py
           git diff --exit-code plugins/pr-watch/assets/
           test -z "$(git status --porcelain plugins/pr-watch/assets/)"
+      - name: prompt-stash images match render.py
+        run: |
+          python3 plugins/prompt-stash/assets/render.py
+          git diff --exit-code plugins/prompt-stash/assets/
+          test -z "$(git status --porcelain plugins/prompt-stash/assets/)"
