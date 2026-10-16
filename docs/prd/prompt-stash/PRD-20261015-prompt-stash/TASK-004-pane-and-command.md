@@ -3,10 +3,10 @@ id: TASK-004
 prd_id: PRD-20261015-prompt-stash
 title: "The /stash command and the pane"
 component: prompt-stash
-status: Todo
+status: In Progress
 created_at: 2026-10-15
 updated_at: 2026-10-15
-started_at: ""
+started_at: 2026-10-15
 completed_at: ""
 blocked_reason: ""
 cancelled_reason: ""
@@ -25,11 +25,11 @@ Register `/stash`, which opens the pane and returns no text. The pane lists the 
 
 ## Acceptance Criteria
 
-- [ ] `/stash` opens the pane and adds no text the model reads (FR-005)
-- [ ] With items of two projects, the pane in project X lists only X's until switched to all (FR-005)
-- [ ] Recalling into an empty box fills it without sending; into a box holding `d`, `d` becomes the newest item; the recalled item stays (FR-006)
-- [ ] Removing an item from the pane removes only it (FR-007)
-- [ ] Declining the clear removes nothing; confirming removes only what the pane shows (FR-008)
+- [x] `/stash` opens the pane and adds no text the model reads (FR-005)
+- [x] With items of two projects, the pane in project X lists only X's until switched to all (FR-005)
+- [x] Recalling into an empty box fills it without sending; into a box holding `d`, `d` becomes the newest item; the recalled item stays (FR-006)
+- [x] Removing an item from the pane removes only it (FR-007)
+- [x] Declining the clear removes nothing; confirming removes only what the pane shows (FR-008)
 
 ## Implementation Notes
 
@@ -57,3 +57,5 @@ plugins/prompt-stash/hooks/view.test.ts
 | Date | Note |
 |---|---|
 | 2026-10-15 | Created |
+| 2026-10-15 | Started, stacked on TASK-002 (#39) |
+| 2026-10-15 | `/stash` registered `immediate` so it opens while a turn runs. Recall closes the pane, back to the prompt. 13 tests pass. In a real 2.1.301 session with a probe on `session.append`: `/stash` opened the pane docked beside the transcript and appended no row; a control prompt appended its rows |
