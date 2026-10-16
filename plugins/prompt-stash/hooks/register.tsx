@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { StashItem, StashScope } from '../types'
 import { dropHeld, holdCleared, trackDraft } from './capture'
 import { addItem, changeItems, clearItems, itemsIn, loadItems, removeItem } from './store'
-import { renderBand, renderPane } from './view'
+import { hintTail, renderPane } from './view'
 
 const PANE = 'prompt-stash'
 const DEFAULT_WIDTH = 100
@@ -27,16 +27,6 @@ async function record($: EngineInterface, text: string): Promise<void> {
   const project = await $.session.root()
   const now = await $.clock.now()
   await mutate($, list => addItem(list, text, project, now))
-}
-
-export async function stashDraft($: EngineInterface): Promise<void> {
-  const box = await $.prompt.read()
-  if (!box.text.trim()) {
-    $.ui.toast('Nothing to stash')
-    return
-  }
-  await record($, box.text)
-  await $.prompt.fill({ text: '' })
 }
 
 async function scopeProject($: EngineInterface): Promise<string | undefined> {
@@ -97,30 +87,17 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('ui.press', { plugin: 'pr-watch', element: 'stash' }, async $ => {
-    await openPane($)
-    return { element: 'stash' }
-  })
-
   on('command.run', { command: 'stash' }, async $ => {
     await openPane($)
     return {}
   })
 
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const stashed = await read($, count)
-    if (e.props.hasSurvey || stashed === 0) {
+    if (stashed === 0) {
       return next(e)
     }
-    const below = await next(e)
-    if (below.type !== 'engine') {
-      return below
-    }
-    return renderBand({
-      el: $.ui.resolve(e),
-      count: stashed,
-      actions: { stash: () => void stashDraft($), open: () => void openPane($) },
-    })
+    return next({ ...e, props: { ...e.props, tail: hintTail(stashed, e.props.tail) } })
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) =>

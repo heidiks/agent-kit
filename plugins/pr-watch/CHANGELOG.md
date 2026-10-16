@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7
+
+- The `✎ N stashed` chip is gone from the band: prompt-stash 0.2.0 shows its count at the end of the prompt's hint line instead, so pr-watch no longer reads anything from it.
+
 ## 0.3.6
 
 - GitHub: a merged PR whose repo has no checks (no workflow and no app posting statuses) finishes as `no checks found` 15 minutes after the merge, not 6 hours. GitHub creates the merge commit's checks within seconds; the 6 hours stay for Azure DevOps pipelines.
