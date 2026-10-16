@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- The menu is back: the hint-line count of 0.2.0 was not clickable, and a button cannot sit on that line without replacing Claude Code's own. Without pr-watch, the band line `N stashed  s: stash draft  l: list` returns; with pr-watch, the chip on its header line, now `✎ N`, opens the list. The count leaves the hint line.
+
 ## 0.2.0
 
 - The count moves to the end of the prompt's hint line (`✎ N stashed (/stash)`), which Claude Code draws anyway: the band line above the prompt, its `s` and `l` keys and the chip in pr-watch's band are gone, so prompt-stash takes no line of its own. `/stash` opens the list.

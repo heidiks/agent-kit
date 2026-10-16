@@ -409,6 +409,11 @@ async function syncPlans($: EngineInterface, settings: Settings): Promise<void> 
   }
 }
 
+async function stashedCount($: EngineInterface): Promise<number> {
+  const held = (await $.state.get({ plugin: 'prompt-stash', key: 'count' } as never)) as { value?: unknown }
+  return typeof held.value === 'number' ? held.value : 0
+}
+
 async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, list: WatchedPr[], isPane: boolean, settings: Settings, width = DEFAULT_WIDTH): Promise<BandContext> {
   return {
     el,
@@ -427,6 +432,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
     width,
     currentSession: await read($, sessionId),
     plans: settings.tasks ? await read($, plans) : [],
+    stashed: isPane ? 0 : await stashedCount($),
     actions: {
       adopt: key => void adopt($, key, settings),
       toggleExpand: key => void update($, expanded, current => (current === key ? '' : key)),
@@ -444,6 +450,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
       markDone: (links, pr) =>
         void $.prompt.submit({ text: markDonePrompt(links, pr) })
           .catch(() => $.ui.toast('Could not send the mark-done prompt')),
+      openStash: () => void $.command.run({ command: 'stash' }).catch(() => $.ui.toast('Could not open the stashed prompts')),
       watchUrl: url => {
         const target = parseTarget(url, settings)
         if (target) void watch($, target, settings)
