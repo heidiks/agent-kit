@@ -1,5 +1,7 @@
 import type { Check, CheckState } from '../types'
-import { GIVE_UP_AFTER_MERGE_MS, SETTLE_AFTER_MERGE_MS, verdict, type Verdict } from './ado'
+import { SETTLE_AFTER_MERGE_MS, verdict, type Verdict } from './ado'
+
+export const GITHUB_NO_CHECKS_GIVE_UP_MS = 15 * 60 * 1000
 
 export type GithubRef = { host: string; owner: string; repo: string; number: number }
 
@@ -171,7 +173,7 @@ export function githubMergedVerdict(runs: GhCheckRun[], statuses: GhStatus[], ms
     ...statuses.map(s => ({ name: s.context, state: STATUS_STATES[s.state] ?? 'queued', href: s.target_url || undefined })),
   ]
   if (checks.length === 0) {
-    const isGivenUp = msSinceMerge > GIVE_UP_AFTER_MERGE_MS
+    const isGivenUp = msSinceMerge > GITHUB_NO_CHECKS_GIVE_UP_MS
     return verdict('merged', [{ name: isGivenUp ? 'no checks found' : 'waiting for checks', state: isGivenUp ? 'skipped' : 'queued' }], isGivenUp)
   }
   const isAllCompleted = checks.every(c => c.state !== 'running' && c.state !== 'queued' && c.state !== 'pending')

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5
+
+- GitHub: a merged PR whose repo has no checks (no workflow and no app posting statuses) finishes as `no checks found` 15 minutes after the merge, not 6 hours. GitHub creates the merge commit's checks within seconds; the 6 hours stay for Azure DevOps pipelines.
+- Order: open PRs come before merged PRs that are only waiting for post-merge checks, so a new PR is no longer pushed off the band by a row of merged ones. Failures and pending reviews stay on top whatever the phase.
+
 ## 0.3.4
 
 - `investigate` keeps the CI's failure text in a fenced block marked as untrusted data, so text from a PR's build output is not read as instructions.
