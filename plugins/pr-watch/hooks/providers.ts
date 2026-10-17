@@ -209,7 +209,8 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     }
     const now = await io.now()
     const closedAt = details.closedAt ? Date.parse(details.closedAt) : now
-    found = githubMergedVerdict(runs.value.check_runs ?? [], statuses.value.statuses ?? [], now - closedAt)
+    const hadPrChecks = (details.statusCheckRollup ?? []).length > 0
+    found = githubMergedVerdict(runs.value.check_runs ?? [], statuses.value.statuses ?? [], now - closedAt, hadPrChecks)
   }
 
   const checks: Check[] = []

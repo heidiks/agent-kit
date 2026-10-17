@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.9
+
+- The PR number, check names and the overview's plan, task and PR labels are buttons that open their page, not terminal hyperlinks. In a terminal without hyperlink support (such as herdr), the hyperlink fell back to the text followed by the full URL, which wrapped the PR column over several lines.
+- GitHub: a merged PR that had no checks of its own finishes as `no checks found` 2 minutes after the merge, not 15. A PR with checks keeps the 15 minutes for the merge commit's pipelines.
+
 ## 0.3.8
 
 - The prompt-stash chip is back on the band's header line, shorter (`✎ N`), so pressing it opens the stashed prompt list again.

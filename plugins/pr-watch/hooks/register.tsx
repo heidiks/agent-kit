@@ -302,7 +302,7 @@ function normalize(pr: WatchedPr): WatchedPr {
 const OPENERS = [['open'], ['xdg-open'], ['cmd', '/c', 'start', '""']]
 
 async function openUrl($: EngineInterface, url: string): Promise<void> {
-  if (!/^https:\/\//.test(url)) {
+  if (!/^(https:\/\/|file:\/\/.+\.md$)/.test(url)) {
     return
   }
   for (const opener of OPENERS) {

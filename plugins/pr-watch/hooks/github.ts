@@ -2,6 +2,7 @@ import type { Check, CheckState } from '../types'
 import { SETTLE_AFTER_MERGE_MS, verdict, type Verdict } from './ado'
 
 export const GITHUB_NO_CHECKS_GIVE_UP_MS = 15 * 60 * 1000
+export const GITHUB_NO_PR_CHECKS_GIVE_UP_MS = 2 * 60 * 1000
 
 export type GithubRef = { host: string; owner: string; repo: string; number: number }
 
@@ -167,13 +168,13 @@ export function githubGateVerdict(pr: GhPr): Verdict {
   return verdict('gate', checks, false)
 }
 
-export function githubMergedVerdict(runs: GhCheckRun[], statuses: GhStatus[], msSinceMerge: number): Verdict {
+export function githubMergedVerdict(runs: GhCheckRun[], statuses: GhStatus[], msSinceMerge: number, hadPrChecks = true): Verdict {
   const checks: Check[] = [
     ...runs.map(r => fromCheckRun(r.name, r.status, r.conclusion, r.html_url ?? r.details_url, r.id)),
     ...statuses.map(s => ({ name: s.context, state: STATUS_STATES[s.state] ?? 'queued', href: s.target_url || undefined })),
   ]
   if (checks.length === 0) {
-    const isGivenUp = msSinceMerge > GITHUB_NO_CHECKS_GIVE_UP_MS
+    const isGivenUp = msSinceMerge > (hadPrChecks ? GITHUB_NO_CHECKS_GIVE_UP_MS : GITHUB_NO_PR_CHECKS_GIVE_UP_MS)
     return verdict('merged', [{ name: isGivenUp ? 'no checks found' : 'waiting for checks', state: isGivenUp ? 'skipped' : 'queued' }], isGivenUp)
   }
   const isAllCompleted = checks.every(c => c.state !== 'running' && c.state !== 'queued' && c.state !== 'pending')

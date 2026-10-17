@@ -105,7 +105,7 @@ const prNumber = (pr: WatchedPr) => (pr.provider === 'github' ? `#${pr.id}` : `!
 const repoName = (pr: WatchedPr) => (pr.provider === 'github' && pr.owner ? `${pr.owner}/${pr.repo}` : pr.repo)
 
 export function renderBand(ctx: BandContext) {
-  const { Box, Button, Link, Text } = ctx.el
+  const { Box, Button, Text } = ctx.el
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
   const isFocused = ctx.isFocused && !ctx.isPane
@@ -125,9 +125,9 @@ export function renderBand(ctx: BandContext) {
 
   const label = (item: Check) =>
     item.href ? (
-      <Link href={item.href}>
-        <Text hover={hoverOf(`chk-${item.buildId ?? item.name}`)}>{item.name}</Text>
-      </Link>
+      <Button key={`chk-${item.href}`} plain hover={hoverOf(`chk-${item.buildId ?? item.name}`)} onPress={() => actions.open(item.href ?? '')}>
+        <Text>{item.name}</Text>
+      </Button>
     ) : (
       <Text {...(item.state === 'skipped' ? quiet : {})}>{item.name}</Text>
     )
@@ -155,9 +155,9 @@ export function renderBand(ctx: BandContext) {
 
   const prLink = (pr: WatchedPr) =>
     pr.url ? (
-      <Link href={pr.url}>
-        <Text bold hover={hoverOf(`pr-${pr.key}`)}>{prNumber(pr)}</Text>
-      </Link>
+      <Button key={`pr-${pr.key}`} plain hover={hoverOf(`pr-${pr.key}`)} onPress={() => actions.open(pr.url)}>
+        <Text bold>{prNumber(pr)}</Text>
+      </Button>
     ) : (
       <Text bold>{prNumber(pr)}</Text>
     )
@@ -624,7 +624,7 @@ export type OverviewContext = BandContext & {
 const TIMELINE_STEPS = 6
 
 export function renderOverview(ctx: OverviewContext) {
-  const { Box, Button, Link, Text } = ctx.el
+  const { Box, Button, Text } = ctx.el
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const stats = overviewStats(ctx.list)
@@ -644,9 +644,9 @@ export function renderOverview(ctx: OverviewContext) {
 
   const linkTo = (href: string, label: string, scope: string, bold = false) =>
     href ? (
-      <Link href={href}>
-        <Text bold={bold} hover={hoverOf(scope)}>{label}</Text>
-      </Link>
+      <Button key={scope} plain hover={hoverOf(scope)} onPress={() => ctx.actions.open(href)}>
+        <Text bold={bold}>{label}</Text>
+      </Button>
     ) : (
       <Text bold={bold}>{label}</Text>
     )
