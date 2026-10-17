@@ -27,7 +27,7 @@ It talks to your PRs through the CLIs already logged in on your machine: `az` fo
 - **Gate:** build validation and checks, reviewers and their votes, merge conflicts, drafts.
 - **After merge:** the pipelines and checks of the merge commit, with stages and pending approvals. A run that "succeeded" while a stage approval was never granted is flagged instead of shown green.
 - **Failures:** the failing task or annotation inline, plus an `investigate` button that asks Claude to read the log and propose a fix (nothing is applied).
-- **Row actions:** `↗ open` opens the PR in the browser, `×` stops watching it after an inline `remove? yes no` confirmation. Clicking the title or the repo opens a detail line under the row (full title, full repo path, source → target branch, linked task, age); clicking again or `▾` closes it.
+- **Row actions:** `↗ open`, or clicking the PR number, opens the PR in the browser (a check name opens its run), `×` stops watching it after an inline `remove? yes no` confirmation. Clicking the title or the repo opens a detail line under the row (full title, full repo path, source → target branch, linked task, age); clicking again or `▾` closes it.
 - **SINCE:** how long the PR has been in its current state; a PR waiting on review or approval for over 24h is flagged (`! 2d`). The header warns when data is stale.
 - **Long lists:** PRs are sorted by urgency (failing, waiting, running, ok), newest first within the same state. The band shows up to five; finished PRs collapse into one line and the rest sit behind `+N more`.
 - **Focus:** `◎ focus` keeps only the PRs that need you: failing builds or checks, conflicts, changes requested, deploys awaiting approval, reviews waiting over 24h and tasks ready to mark done. Green checks are hidden, the rest of the PRs fold into one line of counts, and only `◉ focus` and `⊞ overview` stay in the header. The choice is remembered.
@@ -77,7 +77,7 @@ If you use the [spec-driven-dev](../../skills/spec-driven-dev/README.md) skill, 
 
 - A PR linked to a task shows it: a `TASK` column in the table, next to the repo in the other styles (`TASK-001+2` for a PR covering three).
 - PRs of tasks `In Review` are watched on session start.
-- The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (as `file://` links, opened by your terminal's default app) and the PR label the PR, so spec → task → PR is a click away.
+- The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (opened in your text editor, and only for `.md` files that resolve inside the repo's `docs/prd`) and the PR label the PR, so spec → task → PR is a click away.
 - When a task's PR is merged and its post-merge checks pass, `✓ mark … done` (every ready task of that PR) asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
 
 <picture>

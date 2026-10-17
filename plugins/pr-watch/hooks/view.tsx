@@ -2,7 +2,7 @@ import type { Color, EngineInterface, RenderChildren, RenderSurface, TextHoverPr
 
 import type { BandMode, BandStyle, Check, CheckState, OverviewScope, Phase, PlanInfo, SummaryStatus, TaskInfo, Tone, WatchedPr } from '../types'
 import { ago, byUrgency, ICONS, isStale, isWaitingTooLong, MAX_INLINE_STAGES, needsAttention, overallState, overviewStats, PHASE_LABELS, prLabel, SPINNER } from './ado'
-import { activePlans, canMarkDone, fileUrl, normalizeUrl, prsForTask, readyToMarkDone, TASK_STATES, taskLabel, tasksForPr, type TaskLink } from './tasks'
+import { activePlans, canMarkDone, normalizeUrl, prsForTask, readyToMarkDone, TASK_STATES, taskLabel, tasksForPr, type TaskLink } from './tasks'
 
 export const BAND_STYLES: BandStyle[] = ['table', 'tree', 'cards', 'trail']
 
@@ -26,6 +26,7 @@ export type BandActions = {
   openOverview: () => void
   toggleDone: () => void
   open: (url: string) => void
+  openFile: (path: string) => void
   clearDone: () => void
   cycleMode: () => void
   hide: () => void
@@ -105,7 +106,7 @@ const prNumber = (pr: WatchedPr) => (pr.provider === 'github' ? `#${pr.id}` : `!
 const repoName = (pr: WatchedPr) => (pr.provider === 'github' && pr.owner ? `${pr.owner}/${pr.repo}` : pr.repo)
 
 export function renderBand(ctx: BandContext) {
-  const { Box, Button, Link, Text } = ctx.el
+  const { Box, Button, Text } = ctx.el
   const { list, tick, now, actions } = ctx
   const collapsed = ctx.mode === 'compact'
   const isFocused = ctx.isFocused && !ctx.isPane
@@ -123,21 +124,24 @@ export function renderBand(ctx: BandContext) {
 
   const mark = (state: CheckState) => <Text color={STATE_COLORS[state]}>{glyph(state)}</Text>
 
-  const label = (item: Check) =>
+  const label = (item: Check, key: string) =>
     item.href ? (
-      <Link href={item.href}>
-        <Text hover={hoverOf(`chk-${item.buildId ?? item.name}`)}>{item.name}</Text>
-      </Link>
+      <Button key={`chk-${key}`} plain hover={hoverOf(`chk-${item.buildId ?? item.name}`)} label={item.name} onPress={() => actions.open(item.href ?? '')} />
     ) : (
       <Text {...(item.state === 'skipped' ? quiet : {})}>{item.name}</Text>
     )
 
   const note = (item: Check) => item.note && <Text color={STATE_COLORS[item.state]} dimColor={isDark}>{`(${item.note})`}</Text>
 
-  const checkItem = (item: Check) => (
+  const nameKey = (list: Check[], i: number) => {
+    const name = list[i]?.name ?? ''
+    return `${name}-${list.slice(0, i).filter(c => c.name === name).length}`
+  }
+
+  const checkItem = (item: Check, key: string) => (
     <Box flexDirection="row" gap={1}>
       {mark(item.state)}
-      {label(item)}
+      {label(item, key)}
       {note(item)}
     </Box>
   )
@@ -155,9 +159,7 @@ export function renderBand(ctx: BandContext) {
 
   const prLink = (pr: WatchedPr) =>
     pr.url ? (
-      <Link href={pr.url}>
-        <Text bold hover={hoverOf(`pr-${pr.key}`)}>{prNumber(pr)}</Text>
-      </Link>
+      <Button key={`pr-${pr.key}`} plain hover={hoverOf(`pr-${pr.key}`)} label={prNumber(pr)} onPress={() => actions.open(pr.url)} />
     ) : (
       <Text bold>{prNumber(pr)}</Text>
     )
@@ -207,28 +209,28 @@ export function renderBand(ctx: BandContext) {
       </Box>
     )
 
-  const stageSummary = (stages: Check[]) => {
+  const stageSummary = (stages: Check[], key: string) => {
     const counts = tally(stages.map(s => s.state))
     const notable = stages.filter(s => s.state === 'fail' || s.state === 'pending' || s.state === 'running')
     return [
       ...(['fail', 'running', 'pending', 'queued', 'ok', 'warn', 'skipped'] as const)
         .filter(s => counts[s])
         .map(s => <Text color={STATE_COLORS[s]}>{`${glyph(s)} ${counts[s]}`}</Text>),
-      ...notable.slice(0, 3).map(stage => checkItem(stage)),
+      ...notable.slice(0, 3).map((stage, i) => checkItem(stage, `${key}-${nameKey(notable, i)}`)),
     ]
   }
 
-  const stageLine = (item: Check, indent: number) => {
+  const stageLine = (item: Check, indent: number, key: string) => {
     const stages = item.stages ?? []
     return (
       <Box flexDirection="row" flexWrap="wrap" columnGap={1} paddingLeft={indent}>
         <Text color={faint}>{`${item.name}:`}</Text>
         {stages.length > MAX_INLINE_STAGES
-          ? stageSummary(stages)
+          ? stageSummary(stages, key)
           : stages.map((stage, i) => (
               <Box flexDirection="row" gap={1}>
                 {i > 0 && <Text color={faint}>›</Text>}
-                {checkItem(stage)}
+                {checkItem(stage, `${key}-${nameKey(stages, i)}`)}
               </Box>
             ))}
       </Box>
@@ -266,7 +268,7 @@ export function renderBand(ctx: BandContext) {
   }
 
   const details = (pr: WatchedPr, indent: number) => [
-    ...pr.checks.filter(c => (c.stages?.length ?? 0) > 0).map(c => stageLine(c, indent)),
+    ...pr.checks.filter(c => (c.stages?.length ?? 0) > 0).map((c, i, staged) => stageLine(c, indent, `${pr.key}-stage-${nameKey(staged, i)}`)),
     ...pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, indent)),
   ]
 
@@ -296,7 +298,7 @@ export function renderBand(ctx: BandContext) {
         <Box flexDirection="column">
           <Box flexDirection="row" flexWrap="wrap" columnGap={2} paddingLeft={2}>
             {tag(PHASE_LABELS[pr.phase], PHASE_COLORS[pr.phase])}
-            {shownChecks(pr).map(c => checkItem(c))}
+            {shownChecks(pr).map((c, i, shown) => checkItem(c, `${pr.key}-${nameKey(shown, i)}`))}
           </Box>
           {details(pr, 4)}
           {markDoneLine(pr, 4)}
@@ -374,7 +376,7 @@ export function renderBand(ctx: BandContext) {
             return (
               <Box flexDirection="row">
                 {i > 0 && <Text color={isLinked ? 'success' : faint}>{isLinked ? ' ─── ' : ' ┄┄┄ '}</Text>}
-                {checkItem(collapsed ? { ...node, note: undefined } : node)}
+                {checkItem(collapsed ? { ...node, note: undefined } : node, `${pr.key}-trail-${nameKey(nodes, i)}`)}
               </Box>
             )
           })}
@@ -464,7 +466,7 @@ export function renderBand(ctx: BandContext) {
         {showTitle && cellOf(COLUMNS.title, expandButton(pr, 'title', pr.title, COLUMNS.title - 1), true)}
         {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
         <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row" columnGap={2} overflow="hidden">
-          {shownChecks(pr).map(c => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c)}</Box>)}
+          {shownChecks(pr).map((c, i, shown) => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c, `${pr.key}-${nameKey(shown, i)}`)}</Box>)}
         </Box>
         {cellOf(
           COLUMNS.age,
@@ -624,7 +626,7 @@ export type OverviewContext = BandContext & {
 const TIMELINE_STEPS = 6
 
 export function renderOverview(ctx: OverviewContext) {
-  const { Box, Button, Link, Text } = ctx.el
+  const { Box, Button, Text } = ctx.el
   const isDark = ctx.tone === 'dark'
   const faint: Color = isDark ? 'subtle' : 'inactive'
   const stats = overviewStats(ctx.list)
@@ -642,11 +644,9 @@ export function renderOverview(ctx: OverviewContext) {
 
   const plans = activePlans(ctx.plans, ctx.list)
 
-  const linkTo = (href: string, label: string, scope: string, bold = false) =>
-    href ? (
-      <Link href={href}>
-        <Text bold={bold} hover={hoverOf(scope)}>{label}</Text>
-      </Link>
+  const pressable = (onPress: (() => void) | undefined, label: string, scope: string, bold = false) =>
+    onPress ? (
+      <Button key={scope} plain hover={hoverOf(scope)} label={label} onPress={onPress} />
     ) : (
       <Text bold={bold}>{label}</Text>
     )
@@ -659,17 +659,17 @@ export function renderOverview(ctx: OverviewContext) {
     return (
       <Box flexDirection="row" gap={1} paddingLeft={2}>
         <Text color={STATE_COLORS[state]}>{ICONS[state]}</Text>
-        <Box width={9}>{linkTo(fileUrl(task.file), task.id, `task-${plan.id}-${task.id}`)}</Box>
+        <Box width={9}>{pressable(task.file ? () => ctx.actions.openFile(task.file) : undefined, task.id, `task-${plan.id}-${task.id}`)}</Box>
         <Box width={12}><Text color={STATE_COLORS[state]}>{task.status || '?'}</Text></Box>
         <Box width={32}><Text wrap="truncate-end" {...(isDark ? { dimColor: true } : { color: 'inactive' as Color })}>{task.title}</Text></Box>
         {pr && (
           <Box flexDirection="row" gap={1}>
-            {linkTo(pr.url, prLabel(pr), `plan-pr-${pr.key}`)}
+            {pressable(pr.url ? () => ctx.actions.open(pr.url) : undefined, prLabel(pr), `plan-pr-${plan.id}-${task.id}`)}
             <Text color={faint}>{`· ${PHASE_LABELS[pr.phase]}`}</Text>
           </Box>
         )}
         {pr && canMarkDone(task, pr) && (
-          <Button key={`done-${pr.key}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone([{ plan, task }], pr)} />
+          <Button key={`done-${plan.id}-${task.id}`} variant="primary" label="✓ mark done" onPress={() => ctx.actions.markDone([{ plan, task }], pr)} />
         )}
         {!pr && unwatched[0] && (
           <Button key={`watch-${task.prd}-${task.id}`} plain hover={hoverOf(`watch-${task.prd}-${task.id}`)} label="+ watch PR" onPress={() => ctx.actions.watchUrl(unwatched[0] ?? '')} />
@@ -685,7 +685,7 @@ export function renderOverview(ctx: OverviewContext) {
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" gap={2}>
-          {linkTo(fileUrl(plan.file), plan.id, `plan-${plan.id}`, true)}
+          {pressable(plan.file ? () => ctx.actions.openFile(plan.file) : undefined, plan.id, `plan-${plan.id}`, true)}
           <Text wrap="truncate-end">{plan.title}</Text>
           <Text color={faint}>{`${done}/${active} done · ${plan.status}${plan.phase ? ` · ${plan.phase}` : ''}`}</Text>
         </Box>

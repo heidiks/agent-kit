@@ -179,6 +179,41 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('check names open their http(s) page, keep distinct keys when two share a URL, and open nothing else', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  const codecov = 'https://app.codecov.io/gh/octo-org/website/pull/300'
+  const jenkins = 'http://jenkins.internal/job/123'
+  const pr = {
+    ...GH_PR,
+    statusCheckRollup: [
+      { __typename: 'StatusContext', context: 'codecov/patch', state: 'SUCCESS', targetUrl: codecov },
+      { __typename: 'StatusContext', context: 'codecov/project', state: 'SUCCESS', targetUrl: codecov },
+      { __typename: 'StatusContext', context: 'jenkins', state: 'SUCCESS', targetUrl: jenkins },
+      { __typename: 'StatusContext', context: 'evil', state: 'SUCCESS', targetUrl: 'file:///Applications/Calculator.app#.md' },
+    ],
+  }
+  const opened: string[] = []
+  on('process.run', (_$, e) => {
+    if (e.argv[0] === 'open') opened.push(String(e.argv[1]))
+    const stdout = e.argv[0] === 'gh' && e.argv.includes('view') ? JSON.stringify(pr) : e.argv[0] === 'gh' ? '{}' : answer(e.argv).stdout
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+
+  await $.command.run({ command: 'pr-watch', args: 'octo-org/website#300' } as never)
+  await clock.advance(1)
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  const keys = (await ui.findAll({ type: 'Button' })).map(b => String(b.key)).filter(k => k.startsWith('chk-'))
+  expect(keys.length).toBe(4)
+  expect(new Set(keys).size).toBe(4)
+  for (const key of keys) {
+    await ui.press({ key })
+  }
+  await clock.advance(1)
+  expect([...opened].sort()).toEqual([codecov, codecov, jenkins].sort())
+})
+
 test('github flag off refuses GitHub PRs', { options: { github: false } }, async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
@@ -292,7 +327,7 @@ test('long lists: band shows maxRows, groups finished PRs and opens the rest in 
   await clock.advance(1)
 
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
-  expect((await band.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(3)
+  expect((await band.findAll({ type: 'Button' })).filter(b => /^pr-/.test(String(b.key))).length).toBe(3)
   expect(await band.find({ type: 'Text', text: '✓ 2 finished' })).toBeDefined()
   expect((await band.find({ key: 'more' }))?.text).toContain('+2 more')
 
@@ -306,7 +341,7 @@ test('long lists: band shows maxRows, groups finished PRs and opens the rest in 
     plugin: 'pr-watch', surface: 'terminal', component: 'Pane', requestId: 'pr-watch-overview',
     props: { title: 'Pull requests', isFocused: true, bodyColumns: 120 } as never,
   })
-  expect((await pane.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(7)
+  expect((await pane.findAll({ type: 'Button' })).filter(b => /^pr-/.test(String(b.key))).length).toBe(7)
   expect(await pane.find({ key: 'more' })).toBe(undefined)
 })
 
@@ -324,7 +359,7 @@ test('mini mode: one line with counts and the most urgent PR', async ($, on) => 
   await $.command.run({ command: 'pr-watch', args: 'mode mini' } as never)
 
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
-  expect((await band.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(1)
+  expect((await band.findAll({ type: 'Button' })).filter(b => /^pr-/.test(String(b.key))).length).toBe(1)
   expect(await band.find({ type: 'Text', text: 'build' })).toBeDefined()
   expect(await band.find({ type: 'Text', text: 'feat: x' })).toBeDefined()
   expect(await band.find({ key: 'style' })).toBe(undefined)
@@ -365,7 +400,7 @@ test('overview: scope filter by session, timeline and a haiku summary on demand'
   expect(await pane.find({ type: 'Text', text: 'TIMELINE' })).toBeDefined()
 
   await pane.press({ key: 'scope-session' })
-  expect((await pane.findAll({ type: 'Link' })).filter(l => /\/pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(1)
+  expect((await pane.findAll({ type: 'Button' })).filter(b => /^pr-/.test(String(b.key))).length).toBe(1)
 
   await pane.press({ key: 'summarize' })
   expect(prompts[0]).toContain('web-app !2')
@@ -474,6 +509,8 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   const clock = mock.clock(on, { now: Date.parse('2026-01-02T00:00:00Z') })
   mock.store(on)
   const prompts: string[] = []
+  const openedUrls: string[] = []
+  const realPaths: Record<string, string> = {}
   const files: Record<string, string> = {
     '/repo/docs/prd/web-app/PRD-20261007-retry/spec.md': SPEC_FILE,
     '/repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md': REVIEW_TASK,
@@ -494,9 +531,14 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
     return { value: listing[e.path] ?? [] } as never
   })
   on('fs.read', (_$, e) => ({ value: files[e.path] ?? '' }) as never)
+  on('fs.stat', (_$, e) => ({ value: { kind: 'file', size: 0, mtimeMs: 0, isLink: false, realPath: realPaths[e.path] ?? e.path } }) as never)
   on('process.run', (_$, e) => {
     const out = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     if (e.argv[0] === 'git') return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    if (e.argv[0] === 'open') {
+      openedUrls.push(e.argv.slice(1).join(' '))
+      return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     if (e.argv.includes('runs')) return out([{ id: 9, status: 'completed', result: 'succeeded', sourceVersion: 'abc', definition: { name: 'CI' } }])
     if (e.argv.includes('invoke')) return out({ records: [] })
     return out(MERGED_PR)
@@ -529,10 +571,29 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   })
   expect(await pane.find({ type: 'Text', text: 'PLANS' })).toBeDefined()
   expect(await pane.find({ type: 'Text', text: '0/1 done · In Progress · implement' })).toBeDefined()
-  const hrefs = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href))
-  expect(hrefs).toContain('file:///repo/docs/prd/web-app/PRD-20261007-retry/spec.md')
-  expect(hrefs).toContain('file:///repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md')
-  expect(hrefs.filter(h => h === `${WEB}/pullrequest/123`).length).toBeGreaterThan(1)
+  expect(await pane.find({ key: 'pr-ado:123' })).toBeDefined()
+  await pane.press({ key: 'plan-PRD-20261007-retry' })
+  await pane.press({ key: 'task-PRD-20261007-retry-TASK-002' })
+  await pane.press({ key: 'plan-pr-PRD-20261007-retry-TASK-002' })
+  await clock.advance(1)
+  expect(openedUrls).toEqual([
+    '-t /repo/docs/prd/web-app/PRD-20261007-retry/spec.md',
+    '-t /repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md',
+    `${WEB}/pullrequest/123`,
+  ])
+  const buttonKeys = (await pane.findAll({ type: 'Button' })).map(b => String(b.key))
+  expect(new Set(buttonKeys).size).toBe(buttonKeys.length)
+
+  realPaths['/repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md'] = '/Users/x/Downloads/run.command'
+  await pane.press({ key: 'task-PRD-20261007-retry-TASK-002' })
+  await clock.advance(1)
+  expect(openedUrls.length).toBe(3)
+
+  realPaths['/repo/docs/prd'] = '/shared/prds'
+  realPaths['/repo/docs/prd/web-app/PRD-20261007-retry/spec.md'] = '/shared/prds/web-app/PRD-20261007-retry/spec.md'
+  await pane.press({ key: 'plan-PRD-20261007-retry' })
+  await clock.advance(1)
+  expect(openedUrls[3]).toBe('-t /shared/prds/web-app/PRD-20261007-retry/spec.md')
 
   await ui.press({ key: 'done-ado:123' })
   expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')
@@ -662,7 +723,7 @@ test('clear-all drops this session PRs but keeps the ones another session also w
     props: { title: 'PR overview', isFocused: true, bodyColumns: 140 } as never,
   })
   await pane.press({ key: 'scope-all' })
-  const ids = (await pane.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h)).map(h => h.split('/').pop())
+  const ids = (await pane.findAll({ type: 'Button' })).map(b => String(b.key)).filter(k => /^pr-/.test(k)).map(k => k.split(':').pop())
   expect([...new Set(ids)].sort()).toEqual(['2', '3'])
 })
 
@@ -844,8 +905,8 @@ test('focus: the band keeps only PRs that need you, trims green checks and remem
   await $.session.start({ source: 'startup', cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
   await $.command.run({ command: 'pr-watch', args: '1 2' } as never)
   await clock.advance(1)
-  const prLinks = async (ui: { findAll: (q: object) => Promise<{ props: { href?: unknown } }[]> }) =>
-    (await ui.findAll({ type: 'Link' })).map(l => String(l.props.href)).filter(h => /pullrequest\/\d+$/.test(h))
+  const prLinks = async (ui: { findAll: (q: object) => Promise<{ key?: unknown }[]> }) =>
+    (await ui.findAll({ type: 'Button' })).map(b => String(b.key)).filter(k => /^pr-/.test(k)).map(k => k.slice(3))
 
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
   expect((await prLinks(band)).length).toBe(2)
@@ -853,7 +914,7 @@ test('focus: the band keeps only PRs that need you, trims green checks and remem
   expect(data.get('focus')).toBe(true)
 
   const focused = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
-  expect(await prLinks(focused)).toEqual([`${WEB}/pullrequest/1`])
+  expect(await prLinks(focused)).toEqual(['ado:1'])
   expect(await focused.find({ type: 'Text', text: 'Code-Reviewers' })).toBe(undefined)
   expect(await focused.find({ type: 'Text', text: 'CHECKS' })).toBe(undefined)
   expect(await focused.find({ key: 'style' })).toBe(undefined)
@@ -875,7 +936,7 @@ test('focus with nothing to act on shows one quiet line', async ($, on) => {
 
   const band = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
   expect(await band.find({ type: 'Text', text: 'Nothing needs you now' })).toBeDefined()
-  expect((await band.findAll({ type: 'Link' })).filter(l => /pullrequest\/\d+$/.test(String(l.props.href))).length).toBe(0)
+  expect((await band.findAll({ type: 'Button' })).filter(b => /^pr-/.test(String(b.key))).length).toBe(0)
 })
 
 const stashOpened: string[] = []

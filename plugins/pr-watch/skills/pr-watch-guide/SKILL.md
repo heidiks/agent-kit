@@ -33,7 +33,7 @@ deploy. Answer the user's question from this file; suggest the exact command to 
 
 - Icons: `✓` ok, `✗` failing, spinner running, `○` queued, `◐` waiting (review or approval), `!` warning.
 - Click a title or repo: a detail line with full title, repo path, source → target branch, linked task, age.
-- `↗ open` opens the PR; `×` removes it after `remove? yes no`.
+- `↗ open` or the PR number opens the PR (a check name opens its run); `×` removes it after `remove? yes no`.
 - A failure shows its reason and `⌕ investigate`, which asks Claude to read the log and propose a fix.
 - `SINCE` is the time in the current state; `! 2d` flags a PR waiting on review or approval over 24h.
 - `⊞ overview` opens the popup; `⇕` changes the mode; `▤` the layout; `⊖` hides the band.
