@@ -15,6 +15,8 @@ Skills, plugins and Claude Code mods I use day to day. Install only what you nee
 
 Then pick the scope. Update with `/plugin marketplace update agent-kit` and `/plugin update <plugin>@agent-kit`; remove with `/plugin uninstall <plugin>@agent-kit`.
 
+Updates are not automatic: Claude Code turns auto-update on only for its official marketplaces. Turn it on once with `/plugin` > Marketplaces > agent-kit > Enable auto-update, or with `"autoUpdate": true` on the marketplace's entry in `extraKnownMarketplaces` of your `settings.json`. New versions then download in the background after a session starts and load on `/reload-plugins` or the next launch.
+
 **Skills**, into any [Agent Skills](https://agentskills.io) compatible agent (Claude Code, Codex, Cursor, Gemini CLI, Copilot and [others](https://skills.sh)):
 
 ```bash
