@@ -589,6 +589,12 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   await clock.advance(1)
   expect(openedUrls.length).toBe(3)
 
+  realPaths['/repo/docs/prd'] = '/shared/prds'
+  realPaths['/repo/docs/prd/web-app/PRD-20261007-retry/spec.md'] = '/shared/prds/web-app/PRD-20261007-retry/spec.md'
+  await pane.press({ key: 'plan-PRD-20261007-retry' })
+  await clock.advance(1)
+  expect(openedUrls[3]).toBe('-t /shared/prds/web-app/PRD-20261007-retry/spec.md')
+
   await ui.press({ key: 'done-ado:123' })
   expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')
   expect(prompts[0]).toContain('docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md')

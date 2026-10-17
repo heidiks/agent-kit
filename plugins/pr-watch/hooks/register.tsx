@@ -5,7 +5,7 @@ import type { BandMode, BandStyle, OverviewScope, PlanInfo, SummaryStatus, TaskI
 import { ADO_PR_CREATE, adoKey, applyCheck, combineLists, describe, ICONS, isAbandonedList, mergeLists, notificationFor, overallState, parsePrId, parsePrIds, pollDelay, SPINNER, SUMMARY_SYSTEM, summaryPrompt, type NotifyLevel } from './ado'
 import { githubKey, parseGithubRef, parseGithubRefs } from './github'
 import { checkPr, currentBranchSeeds, inRepo, investigatePrompt, isEnabled, mySeeds, recentAdoSeeds, sendNotification, sessionRepo, type Io, type Seed, type Settings } from './providers'
-import { markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
+import { isMarkdownInside, markDonePrompt, planFromSpec, reviewPrUrls, taskFromFile } from './tasks'
 import { helpText } from './help'
 import { BAND_MODES, BAND_STYLES, LEGACY_STYLES, renderBand, renderOverview, tally, toneOf, type BandContext } from './view'
 
@@ -324,12 +324,14 @@ async function realPathOf($: EngineInterface, path: string): Promise<string | un
 }
 
 async function openFile($: EngineInterface, path: string): Promise<void> {
-  const root = await $.session.root()
-  const base = `${(await realPathOf($, root)) ?? root}/docs/prd/`
+  const prdDir = `${await $.session.root()}/docs/prd`
+  const base = (await realPathOf($, prdDir)) ?? prdDir
   const real = await realPathOf($, path)
-  if (real && real.startsWith(base) && real.endsWith('.md') && !real.split('/').includes('..')) {
+  if (real && isMarkdownInside(base, real)) {
     await runOpeners($, FILE_OPENERS, real)
+    return
   }
+  $.ui.toast(`Not opening ${path}: not a .md file inside docs/prd`)
 }
 
 async function askRemove($: EngineInterface, key: string): Promise<void> {

@@ -2,10 +2,9 @@
 
 ## 0.3.9
 
-- The PR number, check names and the overview's plan, task and PR labels are buttons that open their page, not terminal hyperlinks. In a terminal without hyperlink support (such as herdr), the hyperlink fell back to the text followed by the full URL, which wrapped the PR column over several lines.
-- Opening is stricter: a URL opens only when it is `http` or `https`, and on Windows through `rundll32 url.dll,FileProtocolHandler` instead of `cmd /c start`, which would run whatever follows an `&` in a check's URL. The PLANS spec and task files open in a text editor (`open -t` on macOS), only when the path resolves, symlinks followed, to a `.md` file inside the repo's `docs/prd`.
-- Button keys carry their place (PR, position, plan and task), so two checks with the same URL (Codecov's patch and project) or a PR covering two tasks no longer share a key; `✓ mark done` in the PLANS section had the same clash.
-- GitHub: a merged PR with no checks and no workflow run on its merge commit finishes as `no checks found` 2 minutes after the merge, not 15. A workflow run that exists but has no check yet (a deploy queued by `concurrency`) keeps the 15 minutes.
+- The PR number, check names and the overview's plan, task and PR labels are buttons that open their page, not terminal hyperlinks. In a terminal without hyperlink support (such as herdr), the hyperlink fell back to the text followed by the full URL, which wrapped the PR column over several lines. The PR number and the plan id are no longer bold: Claude Code 2.1.292 takes only a text label on a button.
+- Opening is stricter: a URL opens only when it is `http` or `https`, and on Windows through `rundll32 url.dll,FileProtocolHandler` instead of `cmd /c start`, which would run whatever follows an `&` in a check's URL. The PLANS spec and task files open in a text editor (`open -t` on macOS), only when the file resolves, symlinks followed, to a `.md` inside the resolved `docs/prd`; anything else shows a toast instead.
+- Button keys carry their place (PR, check name and its repeat count, plan and task), so two checks with the same URL (Codecov's patch and project) or a PR covering two tasks no longer share a key, and a new check arriving does not move a focused key to another check; `✓ mark done` in the PLANS section had the same clash.
 
 ## 0.3.8
 

@@ -126,14 +126,17 @@ export function renderBand(ctx: BandContext) {
 
   const label = (item: Check, key: string) =>
     item.href ? (
-      <Button key={`chk-${key}`} plain hover={hoverOf(`chk-${item.buildId ?? item.name}`)} onPress={() => actions.open(item.href ?? '')}>
-        <Text>{item.name}</Text>
-      </Button>
+      <Button key={`chk-${key}`} plain hover={hoverOf(`chk-${item.buildId ?? item.name}`)} label={item.name} onPress={() => actions.open(item.href ?? '')} />
     ) : (
       <Text {...(item.state === 'skipped' ? quiet : {})}>{item.name}</Text>
     )
 
   const note = (item: Check) => item.note && <Text color={STATE_COLORS[item.state]} dimColor={isDark}>{`(${item.note})`}</Text>
+
+  const nameKey = (list: Check[], i: number) => {
+    const name = list[i]?.name ?? ''
+    return `${name}-${list.slice(0, i).filter(c => c.name === name).length}`
+  }
 
   const checkItem = (item: Check, key: string) => (
     <Box flexDirection="row" gap={1}>
@@ -156,9 +159,7 @@ export function renderBand(ctx: BandContext) {
 
   const prLink = (pr: WatchedPr) =>
     pr.url ? (
-      <Button key={`pr-${pr.key}`} plain hover={hoverOf(`pr-${pr.key}`)} onPress={() => actions.open(pr.url)}>
-        <Text bold>{prNumber(pr)}</Text>
-      </Button>
+      <Button key={`pr-${pr.key}`} plain hover={hoverOf(`pr-${pr.key}`)} label={prNumber(pr)} onPress={() => actions.open(pr.url)} />
     ) : (
       <Text bold>{prNumber(pr)}</Text>
     )
@@ -215,7 +216,7 @@ export function renderBand(ctx: BandContext) {
       ...(['fail', 'running', 'pending', 'queued', 'ok', 'warn', 'skipped'] as const)
         .filter(s => counts[s])
         .map(s => <Text color={STATE_COLORS[s]}>{`${glyph(s)} ${counts[s]}`}</Text>),
-      ...notable.slice(0, 3).map((stage, i) => checkItem(stage, `${key}-${i}`)),
+      ...notable.slice(0, 3).map((stage, i) => checkItem(stage, `${key}-${nameKey(notable, i)}`)),
     ]
   }
 
@@ -229,7 +230,7 @@ export function renderBand(ctx: BandContext) {
           : stages.map((stage, i) => (
               <Box flexDirection="row" gap={1}>
                 {i > 0 && <Text color={faint}>›</Text>}
-                {checkItem(stage, `${key}-${i}`)}
+                {checkItem(stage, `${key}-${nameKey(stages, i)}`)}
               </Box>
             ))}
       </Box>
@@ -267,7 +268,7 @@ export function renderBand(ctx: BandContext) {
   }
 
   const details = (pr: WatchedPr, indent: number) => [
-    ...pr.checks.filter(c => (c.stages?.length ?? 0) > 0).map((c, i) => stageLine(c, indent, `${pr.key}-stage-${i}`)),
+    ...pr.checks.filter(c => (c.stages?.length ?? 0) > 0).map((c, i, staged) => stageLine(c, indent, `${pr.key}-stage-${nameKey(staged, i)}`)),
     ...pr.checks.filter(c => c.reason).map(c => reasonLine(pr, c, indent)),
   ]
 
@@ -297,7 +298,7 @@ export function renderBand(ctx: BandContext) {
         <Box flexDirection="column">
           <Box flexDirection="row" flexWrap="wrap" columnGap={2} paddingLeft={2}>
             {tag(PHASE_LABELS[pr.phase], PHASE_COLORS[pr.phase])}
-            {shownChecks(pr).map((c, i) => checkItem(c, `${pr.key}-${i}`))}
+            {shownChecks(pr).map((c, i, shown) => checkItem(c, `${pr.key}-${nameKey(shown, i)}`))}
           </Box>
           {details(pr, 4)}
           {markDoneLine(pr, 4)}
@@ -375,7 +376,7 @@ export function renderBand(ctx: BandContext) {
             return (
               <Box flexDirection="row">
                 {i > 0 && <Text color={isLinked ? 'success' : faint}>{isLinked ? ' ─── ' : ' ┄┄┄ '}</Text>}
-                {checkItem(collapsed ? { ...node, note: undefined } : node, `${pr.key}-trail-${i}`)}
+                {checkItem(collapsed ? { ...node, note: undefined } : node, `${pr.key}-trail-${nameKey(nodes, i)}`)}
               </Box>
             )
           })}
@@ -465,7 +466,7 @@ export function renderBand(ctx: BandContext) {
         {showTitle && cellOf(COLUMNS.title, expandButton(pr, 'title', pr.title, COLUMNS.title - 1), true)}
         {cellOf(COLUMNS.phase, <Text color={PHASE_COLORS[pr.phase]}>{pr.isDraft ? 'draft' : PHASE_LABELS[pr.phase]}</Text>)}
         <Box flexGrow={1} flexShrink={1} minWidth={0} flexDirection="row" columnGap={2} overflow="hidden">
-          {shownChecks(pr).map((c, i) => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c, `${pr.key}-${i}`)}</Box>)}
+          {shownChecks(pr).map((c, i, shown) => <Box flexShrink={0}>{checkItem(collapsed ? { ...c, note: undefined } : c, `${pr.key}-${nameKey(shown, i)}`)}</Box>)}
         </Box>
         {cellOf(
           COLUMNS.age,
@@ -645,9 +646,7 @@ export function renderOverview(ctx: OverviewContext) {
 
   const pressable = (onPress: (() => void) | undefined, label: string, scope: string, bold = false) =>
     onPress ? (
-      <Button key={scope} plain hover={hoverOf(scope)} onPress={onPress}>
-        <Text bold={bold}>{label}</Text>
-      </Button>
+      <Button key={scope} plain hover={hoverOf(scope)} label={label} onPress={onPress} />
     ) : (
       <Text bold={bold}>{label}</Text>
     )

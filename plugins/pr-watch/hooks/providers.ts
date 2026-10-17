@@ -209,14 +209,7 @@ async function checkGithub(io: Io, pr: WatchedPr, settings: Settings): Promise<R
     }
     const now = await io.now()
     const closedAt = details.closedAt ? Date.parse(details.closedAt) : now
-    const checkRuns = runs.value.check_runs ?? []
-    const commitStatuses = statuses.value.statuses ?? []
-    let hasWorkflowRuns = true
-    if (checkRuns.length === 0 && commitStatuses.length === 0) {
-      const workflowRuns = await gh<{ total_count: number }>(io, ['api', '--hostname', host, `repos/${pr.owner}/${pr.repo}/actions/runs?head_sha=${sha}&per_page=1`])
-      hasWorkflowRuns = workflowRuns.value ? workflowRuns.value.total_count > 0 : true
-    }
-    found = githubMergedVerdict(checkRuns, commitStatuses, now - closedAt, hasWorkflowRuns)
+    found = githubMergedVerdict(runs.value.check_runs ?? [], statuses.value.statuses ?? [], now - closedAt)
   }
 
   const checks: Check[] = []

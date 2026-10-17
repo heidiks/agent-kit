@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { PlanInfo, WatchedPr } from '../types'
-import { activePlans, canMarkDone, fileUrl, markDonePrompt, parseFrontmatter, parseTaskRef, parseTaskRefs, readyToMarkDone, taskLabel, tasksForPr, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
+import { activePlans, canMarkDone, isMarkdownInside, markDonePrompt, parseFrontmatter, parseTaskRef, parseTaskRefs, readyToMarkDone, taskLabel, tasksForPr, planFromSpec, reviewPrUrls, taskForPr, taskFromFile } from './tasks'
 
 const TASK_FILE = `---
 id: TASK-002
@@ -61,9 +61,12 @@ test('a PR links to its task by ref or by URL, and only merged green PRs can mar
   expect(activePlans([finished], [pr({})]).length).toBe(1)
 })
 
-test('fileUrl encodes paths and is empty without a file', () => {
-  expect(fileUrl('/repo/docs/prd/My PRD/spec.md')).toBe('file:///repo/docs/prd/My%20PRD/spec.md')
-  expect(fileUrl('')).toBe('')
+test('isMarkdownInside: only .md files under the directory, with either path separator', () => {
+  expect(isMarkdownInside('/repo/docs/prd', '/repo/docs/prd/PRD-1/spec.md')).toBe(true)
+  expect(isMarkdownInside('C:\\repo\\docs\\prd', 'C:\\repo\\docs\\prd\\PRD-1\\spec.md')).toBe(true)
+  expect(isMarkdownInside('/repo/docs/prd', '/repo/docs/prd-other/spec.md')).toBe(false)
+  expect(isMarkdownInside('/repo/docs/prd', '/Users/x/Downloads/run.command')).toBe(false)
+  expect(isMarkdownInside('/repo/docs/prd', '/repo/docs/prd/PRD-1/run.command')).toBe(false)
 })
 
 test('one PR may cover several tasks: Task lines and branch, label and mark done', () => {

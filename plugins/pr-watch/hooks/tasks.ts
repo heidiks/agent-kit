@@ -92,8 +92,10 @@ export function planFromSpec(content: string, path: string, tasks: TaskInfo[], f
   return { id, title: text(data.title), status: text(data.status), phase: text(data.phase), path, file, tasks }
 }
 
-export function fileUrl(file: string): string {
-  return file ? `file://${encodeURI(file)}` : ''
+export function isMarkdownInside(dir: string, path: string): boolean {
+  const slashed = (p: string) => p.replace(/\\/g, '/')
+  const prefix = `${slashed(dir).replace(/\/+$/, '')}/`
+  return slashed(path).startsWith(prefix) && path.endsWith('.md')
 }
 
 export function normalizeUrl(url: string): string {
