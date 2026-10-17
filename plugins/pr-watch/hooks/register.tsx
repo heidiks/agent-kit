@@ -299,19 +299,37 @@ function normalize(pr: WatchedPr): WatchedPr {
   }
 }
 
-const OPENERS = [['open'], ['xdg-open'], ['cmd', '/c', 'start', '""']]
+// rundll32 rather than `cmd /c start`: cmd would run whatever follows an `&` in a check's URL.
+const OPENERS = [['open'], ['xdg-open'], ['rundll32', 'url.dll,FileProtocolHandler']]
+const FILE_OPENERS = [['open', '-t'], ['xdg-open'], ['rundll32', 'url.dll,FileProtocolHandler']]
 
-async function openUrl($: EngineInterface, url: string): Promise<void> {
-  if (!/^(https:\/\/|file:\/\/.+\.md$)/.test(url)) {
-    return
-  }
-  for (const opener of OPENERS) {
-    const ran = await $.process.run([...opener, url], { timeoutMs: 10_000 }).catch(() => undefined)
+async function runOpeners($: EngineInterface, openers: string[][], target: string): Promise<void> {
+  for (const opener of openers) {
+    const ran = await $.process.run([...opener, target], { timeoutMs: 10_000 }).catch(() => undefined)
     if (ran?.exitCode === 0) {
       return
     }
   }
-  $.ui.toast(`Could not open ${url}`)
+  $.ui.toast(`Could not open ${target}`)
+}
+
+async function openUrl($: EngineInterface, url: string): Promise<void> {
+  if (/^https?:\/\//.test(url)) {
+    await runOpeners($, OPENERS, url)
+  }
+}
+
+async function realPathOf($: EngineInterface, path: string): Promise<string | undefined> {
+  return (await $.fs.stat(path, { resolve: true }).catch(() => undefined))?.realPath
+}
+
+async function openFile($: EngineInterface, path: string): Promise<void> {
+  const root = await $.session.root()
+  const base = `${(await realPathOf($, root)) ?? root}/docs/prd/`
+  const real = await realPathOf($, path)
+  if (real && real.startsWith(base) && real.endsWith('.md') && !real.split('/').includes('..')) {
+    await runOpeners($, FILE_OPENERS, real)
+  }
 }
 
 async function askRemove($: EngineInterface, key: string): Promise<void> {
@@ -440,6 +458,7 @@ async function bandContext($: EngineInterface, el: ReturnType<EngineInterface['u
       askRemove: key => void askRemove($, key),
       cancelRemove: () => void update($, pendingRemove, () => ''),
       open: url => void openUrl($, url),
+      openFile: path => void openFile($, path),
       clearDone: () => void remove($, p => !p.isDone, settings),
       cycleMode: () => void cycleMode($),
       toggleDone: () => void update($, doneExpanded, v => !v),

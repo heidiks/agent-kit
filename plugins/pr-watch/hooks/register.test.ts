@@ -179,6 +179,41 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('check names open their http(s) page, keep distinct keys when two share a URL, and open nothing else', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  on('session.id', () => ({ value: 'session-a' }) as never)
+  const codecov = 'https://app.codecov.io/gh/octo-org/website/pull/300'
+  const jenkins = 'http://jenkins.internal/job/123'
+  const pr = {
+    ...GH_PR,
+    statusCheckRollup: [
+      { __typename: 'StatusContext', context: 'codecov/patch', state: 'SUCCESS', targetUrl: codecov },
+      { __typename: 'StatusContext', context: 'codecov/project', state: 'SUCCESS', targetUrl: codecov },
+      { __typename: 'StatusContext', context: 'jenkins', state: 'SUCCESS', targetUrl: jenkins },
+      { __typename: 'StatusContext', context: 'evil', state: 'SUCCESS', targetUrl: 'file:///Applications/Calculator.app#.md' },
+    ],
+  }
+  const opened: string[] = []
+  on('process.run', (_$, e) => {
+    if (e.argv[0] === 'open') opened.push(String(e.argv[1]))
+    const stdout = e.argv[0] === 'gh' && e.argv.includes('view') ? JSON.stringify(pr) : e.argv[0] === 'gh' ? '{}' : answer(e.argv).stdout
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+
+  await $.command.run({ command: 'pr-watch', args: 'octo-org/website#300' } as never)
+  await clock.advance(1)
+  const ui = await $.ui.mount({ plugin: 'pr-watch', surface: 'terminal', component: 'AbovePrompt', props: BAND })
+  const keys = (await ui.findAll({ type: 'Button' })).map(b => String(b.key)).filter(k => k.startsWith('chk-'))
+  expect(keys.length).toBe(4)
+  expect(new Set(keys).size).toBe(4)
+  for (const key of keys) {
+    await ui.press({ key })
+  }
+  await clock.advance(1)
+  expect([...opened].sort()).toEqual([codecov, codecov, jenkins].sort())
+})
+
 test('github flag off refuses GitHub PRs', { options: { github: false } }, async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
@@ -475,6 +510,7 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   mock.store(on)
   const prompts: string[] = []
   const openedUrls: string[] = []
+  const realPaths: Record<string, string> = {}
   const files: Record<string, string> = {
     '/repo/docs/prd/web-app/PRD-20261007-retry/spec.md': SPEC_FILE,
     '/repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md': REVIEW_TASK,
@@ -495,11 +531,12 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
     return { value: listing[e.path] ?? [] } as never
   })
   on('fs.read', (_$, e) => ({ value: files[e.path] ?? '' }) as never)
+  on('fs.stat', (_$, e) => ({ value: { kind: 'file', size: 0, mtimeMs: 0, isLink: false, realPath: realPaths[e.path] ?? e.path } }) as never)
   on('process.run', (_$, e) => {
     const out = (stdout: unknown) => ({ value: { exitCode: 0, stdout: JSON.stringify(stdout), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
     if (e.argv[0] === 'git') return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     if (e.argv[0] === 'open') {
-      openedUrls.push(String(e.argv[1]))
+      openedUrls.push(e.argv.slice(1).join(' '))
       return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (e.argv.includes('runs')) return out([{ id: 9, status: 'completed', result: 'succeeded', sourceVersion: 'abc', definition: { name: 'CI' } }])
@@ -537,13 +574,20 @@ test('spec tasks: PRs of tasks in review are watched, linked in the TASK column,
   expect(await pane.find({ key: 'pr-ado:123' })).toBeDefined()
   await pane.press({ key: 'plan-PRD-20261007-retry' })
   await pane.press({ key: 'task-PRD-20261007-retry-TASK-002' })
-  await pane.press({ key: 'plan-pr-ado:123' })
+  await pane.press({ key: 'plan-pr-PRD-20261007-retry-TASK-002' })
   await clock.advance(1)
   expect(openedUrls).toEqual([
-    'file:///repo/docs/prd/web-app/PRD-20261007-retry/spec.md',
-    'file:///repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md',
+    '-t /repo/docs/prd/web-app/PRD-20261007-retry/spec.md',
+    '-t /repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md',
     `${WEB}/pullrequest/123`,
   ])
+  const buttonKeys = (await pane.findAll({ type: 'Button' })).map(b => String(b.key))
+  expect(new Set(buttonKeys).size).toBe(buttonKeys.length)
+
+  realPaths['/repo/docs/prd/web-app/PRD-20261007-retry/TASK-002-client.md'] = '/Users/x/Downloads/run.command'
+  await pane.press({ key: 'task-PRD-20261007-retry-TASK-002' })
+  await clock.advance(1)
+  expect(openedUrls.length).toBe(3)
 
   await ui.press({ key: 'done-ado:123' })
   expect(prompts[0]).toContain('Mark TASK-002 of PRD-20261007-retry as Done')

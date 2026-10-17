@@ -89,14 +89,14 @@ test('post-merge: external app check runs and statuses, done after settling', ()
   expect(githubMergedVerdict([], [], 60_000).checks[0]?.name).toBe('waiting for checks')
 })
 
-test('post-merge: a repo without checks finishes after 15 minutes, not 6 hours', () => {
+test('post-merge: no checks but workflow runs on the merge commit finishes after 15 minutes, not 6 hours', () => {
   const waiting = githubMergedVerdict([], [], 14 * 60_000)
   expect([waiting.checks[0]?.name, waiting.isDone]).toEqual(['waiting for checks', false])
   const given = githubMergedVerdict([], [], 16 * 60_000)
   expect([given.checks[0]?.name, given.checks[0]?.state, given.isDone]).toEqual(['no checks found', 'skipped', true])
 })
 
-test('post-merge: a PR that had no checks of its own gives up after 2 minutes', () => {
+test('post-merge: no checks and no workflow run on the merge commit gives up after 2 minutes', () => {
   const waiting = githubMergedVerdict([], [], 60_000, false)
   expect([waiting.checks[0]?.name, waiting.isDone]).toEqual(['waiting for checks', false])
   const given = githubMergedVerdict([], [], 3 * 60_000, false)

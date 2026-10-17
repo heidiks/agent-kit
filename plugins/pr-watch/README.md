@@ -77,7 +77,7 @@ If you use the [spec-driven-dev](../../skills/spec-driven-dev/README.md) skill, 
 
 - A PR linked to a task shows it: a `TASK` column in the table, next to the repo in the other styles (`TASK-001+2` for a PR covering three).
 - PRs of tasks `In Review` are watched on session start.
-- The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (opened with the system's default app for Markdown) and the PR label the PR, so spec → task → PR is a click away.
+- The overview gains a **PLANS** section: each active PRD with its tasks, their status and the state of their PRs, plus `+ watch PR` for task PRs not watched yet. The PRD id opens its `spec.md`, the task id its task file (opened in your text editor, and only for `.md` files that resolve inside the repo's `docs/prd`) and the PR label the PR, so spec → task → PR is a click away.
 - When a task's PR is merged and its post-merge checks pass, `✓ mark … done` (every ready task of that PR) asks Claude to verify the acceptance criteria and close the task through the skill. pr-watch never edits spec files itself.
 
 <picture>
